@@ -778,6 +778,21 @@
         </div>
       </div>
 
+      <!-- Sezione: Tipo di mappa (stradale / satellitare) -->
+      <div class="panel-box">
+        <div class="panel-title">
+          <span>MAPPA DI SFONDO</span>
+          <span style="color:var(--amber); font-size:10px;">SALVATAGGIO AUTOMATICO</span>
+        </div>
+        <div class="unit-group">
+          <button type="button" class="unit-opt active" id="optMapOsm" data-map-type="osm">STRADALE (OSM)</button>
+          <button type="button" class="unit-opt" id="optMapSat" data-map-type="sat">SATELLITE</button>
+        </div>
+        <div id="mapSummaryNote" style="font-size:11px; color:var(--muted); margin-top:10px; line-height:1.4;">
+          La mappa satellitare (Esri World Imagery) richiede connessione dati: i tasselli non vengono salvati offline. Sincronizzata anche con il Planner HAHO.
+        </div>
+      </div>
+
       <!-- Sezione 2: Unità di Misura (ft, m, knots, m/s) -->
       <div class="panel-box">
         <div class="panel-title">
@@ -905,7 +920,31 @@
 
     const activeDip = getActiveDip();
     const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([activeDip.lat, activeDip.lon], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+    const MAP_KEY = "aeronav_haho_maptype_v1";
+    let mapType = "osm";
+    try { if (localStorage.getItem(MAP_KEY) === "sat") mapType = "sat"; } catch (e) {}
+
+    function buildBaseLayer(type) {
+      if (type === "sat") {
+        return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+          maxZoom: 19,
+          maxNativeZoom: 18
+        });
+      }
+      return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 });
+    }
+
+    let baseLayer = buildBaseLayer(mapType).addTo(map);
+
+    function setMapType(type) {
+      if (type !== "osm" && type !== "sat") return;
+      mapType = type;
+      try { localStorage.setItem(MAP_KEY, mapType); } catch (e) {}
+      map.removeLayer(baseLayer);
+      baseLayer = buildBaseLayer(mapType).addTo(map);
+      baseLayer.bringToBack();
+      renderSettingsUI();
+    }
 
     map.on("zoomstart", () => {
       if (!programmaticZoom && autoZoom) {
@@ -1311,6 +1350,9 @@
       refreshTelemetryDisplay();
     }
 
+    document.querySelectorAll("[data-map-type]").forEach(btn => {
+      btn.addEventListener("click", () => setMapType(btn.dataset.mapType));
+    });
     document.querySelectorAll("[data-alt-unit]").forEach(btn => {
       btn.addEventListener("click", () => setUnitPreference("alt", btn.dataset.altUnit));
     });
@@ -1322,6 +1364,8 @@
       document.getElementById("cfgCompassOffset").value = Math.round(Number(navState.compassOffsetDeg) || 0);
       updateCalDialUI();
 
+      document.getElementById("optMapOsm").classList.toggle("active", mapType === "osm");
+      document.getElementById("optMapSat").classList.toggle("active", mapType === "sat");
       document.getElementById("optAltFt").classList.toggle("active", navState.altUnit === "ft");
       document.getElementById("optAltM").classList.toggle("active", navState.altUnit === "m");
       document.getElementById("optSpdKt").classList.toggle("active", navState.spdUnit === "kt");
