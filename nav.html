@@ -35,8 +35,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 10px;
-      gap: 6px;
+      padding: 0 8px;
+      gap: 4px;
       z-index: 1200;
       position: relative;
     }
@@ -45,9 +45,9 @@
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--muted);
-      padding: 5px 10px;
+      padding: 5px 9px;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
     }
@@ -56,20 +56,27 @@
       color: #041309;
       border-color: var(--accent);
     }
-    .top-tools { display: flex; align-items: center; gap: 5px; }
+    .top-tools { display: flex; align-items: center; gap: 4px; }
     .tool-btn {
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 5px 8px;
+      padding: 5px 7px;
       border-radius: 6px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
       text-decoration: none;
+      white-space: nowrap;
     }
     .tool-btn.on { background: rgba(56, 189, 248, 0.2); border-color: var(--cyan); color: var(--cyan); }
     .tool-btn.sim-on { background: var(--amber); color: #1c1002; border-color: var(--amber); }
+    .tool-btn.pick-on { background: var(--danger); color: #fff; border-color: #fff; animation: pulseBtn 1.2s infinite; }
+
+    @keyframes pulseBtn {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.72; }
+    }
 
     /* Tab Views */
     .view { display: none; height: calc(100vh - 46px); width: 100%; position: relative; }
@@ -173,6 +180,22 @@
     .hud-mgrs-val { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 800; color: var(--cyan); }
     .hud-target-val { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; color: var(--amber); }
 
+    /* Banner informativo per selezione con tap su mappa */
+    .tap-banner {
+      display: none;
+      background: rgba(239, 68, 68, 0.94);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      letter-spacing: 0.4px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      pointer-events: auto;
+    }
+    .tap-banner.visible { display: block; }
+
     /* Mirino di riferimento centrato in basso sulla posizione */
     .center-reticle {
       position: absolute;
@@ -256,7 +279,7 @@
       color: #041309;
       border: none;
       border-radius: 6px;
-      padding: 7px 10px;
+      padding: 7px 9px;
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
@@ -267,12 +290,63 @@
       color: var(--cyan);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 7px 8px;
+      padding: 7px 7px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-map-set {
+      background: rgba(245, 158, 11, 0.18);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      border-radius: 6px;
+      padding: 7px 7px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
     }
     .leaflet-div-icon { background: transparent; border: none; }
+
+    /* Etichette marker DIP su mappa */
+    .dip-pin-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+    .dip-pin-dot-active {
+      width: 22px;
+      height: 22px;
+      background: #ef4444;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 14px #ef4444;
+    }
+    .dip-pin-dot-alt {
+      width: 18px;
+      height: 18px;
+      background: #f59e0b;
+      border: 2.5px solid #090e17;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.85);
+    }
+    .dip-pin-lbl {
+      margin-top: 2px;
+      background: rgba(9, 14, 23, 0.9);
+      color: #f8fafc;
+      border: 1px solid #334155;
+      font-family: ui-monospace, monospace;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .dip-pin-lbl.active {
+      border-color: #ef4444;
+      color: #fca5a5;
+    }
   </style>
 </head>
 <body>
@@ -283,6 +357,7 @@
     </div>
     <div class="top-tools">
       <button id="btnInstall" class="tool-btn on" style="display:none;">INSTALLA</button>
+      <button id="btnTapDip" class="tool-btn" title="Tocca un punto su mappa per impostare nuovo DIP">TAP DIP</button>
       <button id="btnCompass" class="tool-btn on" title="Orientamento Bussola">HDG UP</button>
       <button id="btnCenter" class="tool-btn on" title="Centra su GPS">GPS</button>
       <button id="btnSim" class="tool-btn" title="Simulatore Volo">SIM</button>
@@ -344,6 +419,11 @@
             <div class="hud-target-val" id="hudDipMgrs">---</div>
           </div>
         </div>
+
+        <!-- Banner attivo quando si seleziona un punto con tap su mappa -->
+        <div id="tapBanner" class="tap-banner">
+          TOCCA UN DIP ESISTENTE O UN PUNTO QUALSIASI SULLA MAPPA PER NAVIGARCI
+        </div>
       </div>
     </div>
   </section>
@@ -380,6 +460,7 @@
             <input type="number" id="mainDipElev" value="100" />
           </div>
           <div style="display:flex; gap:4px;">
+            <button class="btn-map-set" onclick="pickSlotOnMap('main')" title="Posiziona con tap su mappa">MAPPA</button>
             <button class="btn-dem" onclick="fetchRowDem('main')">DEM</button>
             <button class="btn-act" onclick="activateTarget('main')">ATTIVA</button>
           </div>
@@ -388,8 +469,8 @@
 
       <div class="panel-box">
         <div class="panel-title">
-          <span>5 DIP ALTERNATIVI DI EMERGENZA (MGRS)</span>
-          <span>SELEZIONA IN VOLO</span>
+          <span>5 DIP ALTERNATIVI DI EMERGENZA (MGRS O TAP MAPPA)</span>
+          <span>TOCCA MARKER SU MAPPA</span>
         </div>
         <div id="altDipsContainer"></div>
       </div>
@@ -471,8 +552,6 @@
       const originLon = currentTelemetry.lon || navState.harpLon;
 
       const distM = AeronavCore.distanceMeters(originLat, originLon, target.lat, target.lon);
-      // Calcola il livello di zoom ottimale per visualizzare l'intera tratta nella porzione visibile della mappa
-      // sotto la telemetria superiore (circa il 48% dell'altezza del viewport)
       const viewH = document.getElementById("mapViewport").clientHeight || 640;
       const visibleSpanPx = Math.max(220, viewH * 0.48);
       const midLatRad = AeronavCore.toRad((originLat + target.lat) / 2);
@@ -492,11 +571,6 @@
       iconSize: [30, 30],
       iconAnchor: [15, 15]
     });
-    const dipIcon = L.divIcon({
-      html: `<div style="width:20px;height:20px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px #ef4444;"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
     const harpIcon = L.divIcon({
       html: `<div style="width:16px;height:16px;background:#22c55e;border:2px solid #090e17;transform:rotate(45deg);"></div>`,
       iconSize: [16, 16],
@@ -504,8 +578,160 @@
     });
 
     const jumperMarker = L.marker([navState.harpLat, navState.harpLon], { icon: jumperIcon, zIndexOffset: 1000 }).addTo(map);
-    const dipMarker = L.marker([activeDip.lat, activeDip.lon], { icon: dipIcon }).addTo(map);
     const harpMarker = L.marker([navState.harpLat, navState.harpLon], { icon: harpIcon }).addTo(map);
+
+    // Layer dedicato a tutti i marker dei DIP (Principale + 5 Alternativi) cliccabili sulla mappa
+    const dipMarkersLayer = L.layerGroup().addTo(map);
+
+    function createDipMarkerIcon(name, isActive) {
+      return L.divIcon({
+        html: `<div class="dip-pin-wrap" style="transform: rotate(${compassMode ? smoothedHeading : 0}deg);">
+                 <div class="${isActive ? "dip-pin-dot-active" : "dip-pin-dot-alt"}"></div>
+                 <div class="dip-pin-lbl ${isActive ? "active" : ""}">${name}</div>
+               </div>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
+      });
+    }
+
+    function renderAllDipMarkers() {
+      dipMarkersLayer.clearLayers();
+
+      // Marker DIP Principale
+      const isMainActive = navState.activeId === "main";
+      const mainM = L.marker([navState.mainDip.lat, navState.mainDip.lon], {
+        icon: createDipMarkerIcon(navState.mainDip.name, isMainActive),
+        zIndexOffset: isMainActive ? 900 : 500
+      }).addTo(dipMarkersLayer);
+
+      mainM.on("click", (e) => {
+        L.DomEvent.stopPropagation(e);
+        selectDipFromMap("main");
+      });
+
+      // Marker dei 5 DIP Alternativi
+      navState.altDips.forEach((alt, idx) => {
+        const isAltActive = navState.activeId === String(idx);
+        const m = L.marker([alt.lat, alt.lon], {
+          icon: createDipMarkerIcon(alt.name, isAltActive),
+          zIndexOffset: isAltActive ? 900 : 500
+        }).addTo(dipMarkersLayer);
+
+        m.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          selectDipFromMap(String(idx));
+        });
+      });
+    }
+
+    // Selezione immediata con tap su uno dei marker DIP presenti sulla mappa
+    function selectDipFromMap(slot) {
+      navState.activeId = String(slot);
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+
+      const target = getActiveDip();
+      const originLat = currentTelemetry.lat || navState.harpLat;
+      const originLon = currentTelemetry.lon || navState.harpLon;
+
+      renderAllDipMarkers();
+      idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
+      directLine.setLatLngs([[originLat, originLon], [target.lat, target.lon]]);
+
+      if (currentTelemetry.lat) {
+        updateTelemetry(
+          currentTelemetry.lat,
+          currentTelemetry.lon,
+          (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
+          currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
+          currentTelemetry.gpsHeading
+        );
+      } else {
+        document.getElementById("hudTargetName").textContent = target.name;
+        document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
+      }
+
+      zoomToActiveTrack();
+    }
+
+    // Modalita' "TAP DIP": tocca un punto qualsiasi sulla mappa per creare/spostare un DIP alternativo e navigarci
+    let tapAssignSlot = null; // null = off, "quick" = assegna al prossimo/ultimo alt, oppure "main" / "0".."4"
+
+    function setTapDipMode(slotOrNull) {
+      tapAssignSlot = slotOrNull;
+      const btn = document.getElementById("btnTapDip");
+      const banner = document.getElementById("tapBanner");
+      if (tapAssignSlot !== null) {
+        btn.classList.add("pick-on");
+        banner.classList.add("visible");
+        banner.textContent = tapAssignSlot === "quick"
+          ? "TOCCA UN MARKER DIP O UN PUNTO SULLA MAPPA PER NAVIGARCI"
+          : `TOCCA SULLA MAPPA PER POSIZIONARE ${tapAssignSlot === "main" ? navState.mainDip.name : navState.altDips[tapAssignSlot].name}`;
+      } else {
+        btn.classList.remove("pick-on");
+        banner.classList.remove("visible");
+      }
+    }
+
+    document.getElementById("btnTapDip").addEventListener("click", () => {
+      if (tapAssignSlot !== null) {
+        setTapDipMode(null);
+      } else {
+        setTapDipMode("quick");
+      }
+    });
+
+    window.pickSlotOnMap = function(slot) {
+      syncConfigFromInputs();
+      document.querySelector('.tab-btn[data-tab="viewMap"]').click();
+      setTimeout(() => {
+        map.invalidateSize();
+        setTapDipMode(String(slot));
+      }, 60);
+    };
+
+    map.on("click", async (e) => {
+      if (tapAssignSlot === null) return;
+
+      const lat = e.latlng.lat;
+      const lon = e.latlng.lng;
+      let targetSlot = tapAssignSlot;
+
+      // Se attivato dal pulsante rapido "TAP DIP", aggiorna l'alternativo 5 (o quello attualmente selezionato se e' gia' un alt)
+      if (targetSlot === "quick") {
+        targetSlot = (navState.activeId !== "main") ? navState.activeId : "4";
+      }
+
+      setTapDipMode(null);
+
+      const targetObj = targetSlot === "main" ? navState.mainDip : navState.altDips[parseInt(targetSlot, 10)];
+      targetObj.lat = lat;
+      targetObj.lon = lon;
+      if (tapAssignSlot === "quick" && targetSlot === "4") {
+        targetObj.name = "ALT TAP MAP";
+      }
+
+      navState.activeId = String(targetSlot);
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      renderTargetConfig();
+      selectDipFromMap(targetSlot);
+
+      // Aggiorna quota terreno DEM Open-Meteo in background e ricalcola efficienza richiesta
+      try {
+        const elev = await AeronavCore.fetchElevationFt(lat, lon);
+        targetObj.elevFt = elev;
+        localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+        renderTargetConfig();
+        if (currentTelemetry.lat) {
+          updateTelemetry(
+            currentTelemetry.lat,
+            currentTelemetry.lon,
+            (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
+            currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
+            currentTelemetry.gpsHeading
+          );
+        }
+      } catch (err) {}
+    });
 
     const idealLine = L.polyline([[navState.harpLat, navState.harpLon], [activeDip.lat, activeDip.lon]], {
       color: "#22c55e",
@@ -532,6 +758,7 @@
     function updateMapRotation() {
       const rotator = document.getElementById("mapRotator");
       const arrow = document.getElementById("jumperArrow");
+      const rotDeg = compassMode ? smoothedHeading : 0;
       if (compassMode) {
         rotator.style.transform = `translate(-50%, -50%) rotate(${-smoothedHeading}deg)`;
         if (arrow) arrow.style.transform = `rotate(${smoothedHeading}deg)`;
@@ -539,6 +766,10 @@
         rotator.style.transform = `translate(-50%, -50%) rotate(0deg)`;
         if (arrow) arrow.style.transform = `rotate(${smoothedHeading}deg)`;
       }
+      // Mantiene dritte e leggibili le etichette dei DIP durante la rotazione bussola
+      document.querySelectorAll(".dip-pin-wrap").forEach(el => {
+        el.style.transform = `rotate(${rotDeg}deg)`;
+      });
     }
 
     function handleDeviceOrientation(e) {
@@ -648,8 +879,7 @@
       const altToLoseM = altToLoseFt * AeronavCore.FT_TO_M;
 
       // 1. EFFICIENZA REALE (Garmin GPSMAP 64st Glide Ratio):
-      //    Rapporto tra velocita' orizzontale al suolo e velocita' verticale di discesa (L/D reale)
-      const sinkRateFpm = -vsRealFpm; // positivo in discesa
+      const sinkRateFpm = -vsRealFpm;
       let realGlideRatio = null;
       if (sinkRateFpm > 30 && speedKt > 1.5) {
         const horizFpm = (groundSpeedMs * AeronavCore.M_TO_FT) * 60;
@@ -657,7 +887,6 @@
       }
 
       // 2. EFFICIENZA A DESTINAZIONE (Garmin GPSMAP 64st Glide Ratio to Destination):
-      //    Rapporto tra distanza orizzontale residua al DIP e quota residua sopra il DIP (Distanza / Quota AGL)
       let reqGlideRatio = null;
       if (altToLoseM > 3 && distM > 5) {
         reqGlideRatio = distM / altToLoseM;
@@ -676,11 +905,9 @@
       document.getElementById("hudTargetName").textContent = target.name;
       document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
 
-      // Aggiornamento Efficienza Reale
       document.getElementById("valGlideReal").textContent = formatGlideRatio(realGlideRatio);
       document.getElementById("subAltMsl").textContent = `QUOTA: ${Math.round(altFt)} ft (AGL: ${Math.round(altToLoseFt)} ft)`;
 
-      // Aggiornamento Efficienza a Destinazione + Stato Semaforico Garmin
       const cardGlide = document.getElementById("cardGlideDest");
       cardGlide.classList.remove("status-ok", "status-high", "status-low");
       document.getElementById("valGlideDest").textContent = formatGlideRatio(reqGlideRatio);
@@ -808,6 +1035,7 @@
             <input type="number" id="altElev_${idx}" value="${alt.elevFt}" />
           </div>
           <div style="display:flex; gap:4px;">
+            <button class="btn-map-set" onclick="pickSlotOnMap(${idx})" title="Posiziona con tap su mappa">MAPPA</button>
             <button class="btn-dem" onclick="fetchRowDem(${idx})">DEM</button>
             <button class="btn-act" onclick="activateTarget(${idx})">ATTIVA</button>
           </div>
@@ -849,6 +1077,7 @@
       });
 
       localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      renderAllDipMarkers();
     }
 
     window.fetchRowDem = async function(slot) {
@@ -869,40 +1098,17 @@
 
     window.activateTarget = function(slot) {
       syncConfigFromInputs();
-      navState.activeId = String(slot);
-      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
-
-      const target = getActiveDip();
-      const originLat = currentTelemetry.lat || navState.harpLat;
-      const originLon = currentTelemetry.lon || navState.harpLon;
-
-      harpMarker.setLatLng([navState.harpLat, navState.harpLon]);
-      dipMarker.setLatLng([target.lat, target.lon]);
-      idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
-      directLine.setLatLngs([[originLat, originLon], [target.lat, target.lon]]);
-
-      // Passa alla scheda Mappa ed esegue auto-zoom sulla nuova traccia di navigazione
       document.querySelector('.tab-btn[data-tab="viewMap"]').click();
 
       setTimeout(() => {
         map.invalidateSize();
-        if (currentTelemetry.lat) {
-          updateTelemetry(
-            currentTelemetry.lat,
-            currentTelemetry.lon,
-            (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
-            currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
-            currentTelemetry.gpsHeading
-          );
-        } else {
-          document.getElementById("hudTargetName").textContent = target.name;
-          document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
-        }
-        zoomToActiveTrack();
+        harpMarker.setLatLng([navState.harpLat, navState.harpLon]);
+        selectDipFromMap(String(slot));
       }, 90);
     };
 
     renderTargetConfig();
+    renderAllDipMarkers();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
     zoomToActiveTrack();

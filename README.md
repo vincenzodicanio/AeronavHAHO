@@ -2,8 +2,7 @@
 
 Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per la pubblicazione diretta su **GitHub Pages** o qualsiasi hosting statico HTTPS.
 
-## Novità Versione 3
-- **Efficienza Reale ed Efficienza a Destinazione (Garmin GPSMAP 64st)**:
-  - `EFFICIENZA (REALE)`: rapporto istantaneo tra velocità orizzontale al suolo e rateo di discesa (`X.X:1`).
-  - `EFFICIENZA A DEST.`: rapporto tra distanza residua al DIP e quota residua sopra il DIP (`X.X:1`), con indicatore semaforico di margine o deficit.
-- **Auto-Zoom alla Selezione del DIP**: Attivando il DIP principale o uno dei 5 DIP alternativi, la mappa calcola automaticamente il livello di zoom ottimale per inquadrare l'intera traccia di navigazione.
+## Novità Versione 4
+- **Selezione DIP Alternativi con Tap su Mappa**:
+  - Tutti i DIP (Principale + 5 Alternativi) sono visibili sulla mappa con etichetta dedicata: toccando direttamente il marker di un DIP sulla mappa, la navigazione commuta immediatamente su quel punto con auto-zoom sulla nuova traccia.
+  - Il pulsante **TAP DIP** nella barra superiore (e i pulsanti **MAPPA** nella scheda `DIP / ALT (5)`) consentono inoltre di toccare un punto qualsiasi sulla mappa per assegnarlo come DIP alternativo, scaricarne automaticamente la quota DEM Open-Meteo e avviare subito la navigazione verso quel punto.
