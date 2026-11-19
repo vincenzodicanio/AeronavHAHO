@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'aeronav-haho-v2026-11-19-01';
+const CACHE_VERSION = 'aeronav-haho-v2026-11-19-02';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -8,6 +8,7 @@ self.addEventListener('install', (event) => {
         './',
         './index.html',
         './nav.html',
+        './mgrs-core.js',
         './manifest.json',
         './icon-192.svg',
         './icon-512.svg'
@@ -26,13 +27,9 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Strategia Network-First: scarica sempre la versione piu' aggiornata dal server ad ogni apertura,
-// usando la cache solo come fallback offline.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-
   const url = new URL(event.request.url);
-  // Non intercettare chiamate API esterne (Open-Meteo, tile cartografiche)
   if (url.origin !== location.origin) return;
 
   event.respondWith(

@@ -163,7 +163,6 @@
 
   <div class="layout">
     <aside class="sidebar">
-      <!-- Risultato HARP -->
       <div class="result-card">
         <div class="box-title" style="color:var(--accent); margin-bottom:2px;">
           <span>PUNTO DI LANCIO (HARP SOPRAVVENTO)</span>
@@ -190,7 +189,6 @@
         </div>
       </div>
 
-      <!-- Coordinate DIP e Quota -->
       <div class="box">
         <div class="box-title">
           <span>1. BERSAGLIO (DIP) &amp; QUOTA TERRENO</span>
@@ -216,7 +214,6 @@
         <div class="status-msg" id="dipStatus">Trascina il marker rosso o inserisci MGRS.</div>
       </div>
 
-      <!-- Parametri Lancio e Vela -->
       <div class="box">
         <div class="box-title"><span>2. PROFILO LANCIO &amp; VELA</span></div>
         <div class="grid-3">
@@ -239,7 +236,6 @@
         </div>
       </div>
 
-      <!-- Dati Meteo Open-Meteo -->
       <div class="box">
         <div class="box-title">
           <span>3. VENTI IN QUOTA (OPEN-METEO)</span>
@@ -278,7 +274,6 @@
   <script>
     const STATE_KEY = "aeronav_haho_mission_v1";
 
-    // Default state (Area Pontedera / Bientina - Toscana)
     let state = {
       dipLat: 43.6812,
       dipLon: 10.6305,
@@ -309,7 +304,6 @@
       }
     } catch (e) {}
 
-    // Init Date/Hour controls
     const now = new Date();
     const dateInput = document.getElementById("windDate");
     const hourSelect = document.getElementById("windHour");
@@ -322,7 +316,6 @@
       hourSelect.appendChild(opt);
     }
 
-    // Leaflet Map setup
     const map = L.map("map", { zoomControl: true }).setView([state.dipLat, state.dipLon], 12);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
@@ -406,7 +399,6 @@
       }
     });
 
-    // Render Wind Table
     function renderWindTable() {
       const tbody = document.getElementById("windTableBody");
       tbody.innerHTML = "";
@@ -429,7 +421,6 @@
       });
     }
 
-    // Fetch winds from Open-Meteo Pressure Levels
     async function fetchOpenMeteoWinds() {
       const dateStr = document.getElementById("windDate").value;
       const hourIdx = parseInt(document.getElementById("windHour").value, 10) || 0;
@@ -487,7 +478,6 @@
         const w1 = sorted[i], w2 = sorted[i + 1];
         if (altFt >= w1.altFt && altFt <= w2.altFt) {
           const t = (altFt - w1.altFt) / (w2.altFt - w1.altFt);
-          // Shortest angular interpolation
           let diff = ((w2.dirFrom - w1.dirFrom + 540) % 360) - 180;
           const dir = (w1.dirFrom + diff * t + 360) % 360;
           const spd = w1.spdKt + (w2.spdKt - w1.spdKt) * t;
@@ -497,7 +487,6 @@
       return sorted[0];
     }
 
-    // Core calculation: HARP placed UPWIND so jumper flies DOWNWIND (a favore di vento) to DIP
     function recalculateHarp() {
       state.dipElevFt = parseFloat(document.getElementById("dipElevFt").value) || 0;
       state.safetyFactorKft = Math.max(0, parseFloat(document.getElementById("safetyFactorKft").value) || 0);
@@ -509,17 +498,13 @@
       const usableAltFt = Math.max(0, state.exitAltFt - targetArrivalAltFt);
       document.getElementById("usableAltLbl").textContent = Math.round(usableAltFt).toLocaleString("it-IT");
 
-      // Canopy horizontal airspeed in knots derived from Glide Ratio & Sink Rate
       const sinkRateFps = state.sinkRateFpm / 60;
       const canopyHorizFps = sinkRateFps * state.glideRatio;
       const canopyHorizKt = (canopyHorizFps * AeronavCore.FT_TO_M) * AeronavCore.MS_TO_KT;
 
       const stepFt = 500;
-      let totalNorthM = 0;
-      let totalEastM = 0;
       let totalTimeSec = 0;
 
-      // Trajectory points built backwards from DIP (at targetArrivalAltFt) up to HARP (exitAltFt)
       const trackPoints = [{ lat: state.dipLat, lon: state.dipLon, altFt: targetArrivalAltFt }];
       let currLat = state.dipLat;
       let currLon = state.dipLon;
@@ -532,18 +517,9 @@
         const dtSec = dh / sinkRateFps;
         totalTimeSec += dtSec;
 
-        // Direction TOWARDS which wind blows (downwind / a favore di vento)
-        const windToDeg = (wind.dirFrom + 180) % 360;
-        const windToRad = AeronavCore.toRad(windToDeg);
-
-        // Ground speed flying downwind: wind speed + canopy airspeed
         const groundSpeedMs = (wind.spdKt + canopyHorizKt) * AeronavCore.KT_TO_MS;
         const stepDistM = groundSpeedMs * dtSec;
 
-        totalNorthM += stepDistM * Math.cos(windToRad);
-        totalEastM += stepDistM * Math.sin(windToRad);
-
-        // Moving backwards from DIP along windFromDeg places HARP upwind
         const upwindDeg = wind.dirFrom % 360;
         const prevPt = AeronavCore.destinationPoint(currLat, currLon, upwindDeg, stepDistM);
         currLat = prevPt.lat;
@@ -562,12 +538,10 @@
       document.getElementById("outBearing").textContent = String(Math.round(bearingToDip)).padStart(3, "0") + "°";
       document.getElementById("outTimeMin").textContent = (totalTimeSec / 60).toFixed(1) + " min";
 
-      // Update Map
       harpMarker.setLatLng([state.harpLat, state.harpLon]);
       const latLngs = trackPoints.reverse().map(p => [p.lat, p.lon]);
       routeLine.setLatLngs(latLngs);
 
-      // Safety circle radius proportional to safety margin glide capability
       const marginGlideM = (state.safetyFactorKft * 1000 * state.glideRatio) * AeronavCore.FT_TO_M;
       safetyCircle.setRadius(Math.max(150, marginGlideM));
 
@@ -636,7 +610,6 @@
       a.click();
     });
 
-    // Init UI
     document.getElementById("dipMgrs").value = AeronavCore.latLonToMgrs(state.dipLat, state.dipLon, 5);
     document.getElementById("dipElevFt").value = state.dipElevFt;
     document.getElementById("safetyFactorKft").value = state.safetyFactorKft;
@@ -646,7 +619,6 @@
     renderWindTable();
     recalculateHarp();
 
-    // PWA Install & Auto-Update
     let deferredPrompt = null;
     AeronavCore.initPwaAutoUpdate((e) => {
       deferredPrompt = e;

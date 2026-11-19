@@ -12,7 +12,6 @@ const AeronavCore = (() => {
   function toRad(deg) { return deg * Math.PI / 180; }
   function toDeg(rad) { return rad * 180 / Math.PI; }
 
-  // Haversine distance in meters
   function distanceMeters(lat1, lon1, lat2, lon2) {
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -21,7 +20,6 @@ const AeronavCore = (() => {
     return 2 * R_EARTH * Math.asin(Math.min(1, Math.sqrt(a)));
   }
 
-  // Initial bearing from point 1 to point 2 (0-360 deg)
   function bearingDegrees(lat1, lon1, lat2, lon2) {
     const phi1 = toRad(lat1);
     const phi2 = toRad(lat2);
@@ -32,7 +30,6 @@ const AeronavCore = (() => {
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
   }
 
-  // Destination point given start, bearing (deg), and distance (m)
   function destinationPoint(lat, lon, bearingDeg, distMeters) {
     const angDist = distMeters / R_EARTH;
     const brng = toRad(bearingDeg);
@@ -54,7 +51,6 @@ const AeronavCore = (() => {
     };
   }
 
-  // Cross-track distance in meters (positive = right of track, negative = left of track)
   function crossTrackMeters(latCurr, lonCurr, latStart, lonStart, latEnd, lonEnd) {
     const d13 = distanceMeters(latStart, lonStart, latCurr, lonCurr) / R_EARTH;
     const th13 = toRad(bearingDegrees(latStart, lonStart, latCurr, lonCurr));
@@ -62,9 +58,6 @@ const AeronavCore = (() => {
     return Math.asin(Math.sin(d13) * Math.sin(th13 - th12)) * R_EARTH;
   }
 
-  // --------------------------------------------------------------------------
-  // WGS84 <-> UTM <-> MGRS (WGRS) Full Converter (1m - 10km precision)
-  // --------------------------------------------------------------------------
   const UTM_A = 6378137.0;
   const UTM_ECC_SQ = 0.00669438;
   const UTM_K0 = 0.9996;
@@ -155,7 +148,6 @@ const AeronavCore = (() => {
     }
   }
 
-  // Min northing per latitude band (Northern Hemisphere, +10,000,000 for Southern)
   function getMinNorthing(band) {
     const bandIdx = LAT_BANDS.indexOf(band);
     if (bandIdx === -1) throw new Error("Banda MGRS non valida");
@@ -198,7 +190,6 @@ const AeronavCore = (() => {
       northing += 2000000;
     }
 
-    // UTM to Lat/Lon
     const isSouth = LAT_BANDS.indexOf(band) < 10;
     const y = isSouth ? northing - 10000000.0 : northing;
     const x = easting - 500000.0;
@@ -238,7 +229,6 @@ const AeronavCore = (() => {
     };
   }
 
-  // Fetch terrain elevation in feet MSL from Open-Meteo DEM
   async function fetchElevationFt(lat, lon) {
     const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(6)}&longitude=${lon.toFixed(6)}`;
     const res = await fetch(url);
@@ -250,7 +240,6 @@ const AeronavCore = (() => {
     throw new Error("Dato elevazione non disponibile");
   }
 
-  // Register Service Worker & force update check on every app open / resume
   function initPwaAutoUpdate(onInstallAvailable) {
     if ("serviceWorker" in navigator) {
       let refreshing = false;

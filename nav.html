@@ -82,62 +82,24 @@
       overflow: hidden;
       background: #090e17;
     }
+    /* Pivot del contenitore mappa spostato al 78% dell'altezza schermo:
+       in questo modo la posizione GPS attuale e' centrata nella parte bassa dello schermo */
     #mapRotator {
       position: absolute;
-      width: 150vmax;
-      height: 150vmax;
+      width: 190vmax;
+      height: 190vmax;
       left: 50%;
-      top: 50%;
+      top: 78%;
       transform: translate(-50%, -50%) rotate(0deg);
       transform-origin: center center;
       transition: transform 0.15s linear;
     }
     #map { width: 100%; height: 100%; }
 
-    /* Lubber line & North badge */
-    .lubber-line {
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 4px;
-      height: 22px;
-      background: var(--danger);
-      z-index: 900;
-      border-radius: 0 0 3px 3px;
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
-      pointer-events: none;
-    }
-
-    /* Top MGRS HUD Banner over Map */
-    .hud-top {
+    /* Campi Dati Garmin GPSMAP 64st + MGRS posizionati IN ALTO */
+    .top-telemetry-stack {
       position: absolute;
       top: 8px;
-      left: 8px;
-      right: 8px;
-      z-index: 950;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 6px;
-      pointer-events: none;
-    }
-    .hud-pill {
-      background: rgba(9, 14, 23, 0.88);
-      backdrop-filter: blur(6px);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 5px 9px;
-      pointer-events: auto;
-    }
-    .hud-mgrs-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
-    .hud-mgrs-val { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 800; color: var(--cyan); }
-    .hud-target-val { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; color: var(--amber); }
-
-    /* Bottom Garmin GPSMAP 64st Telemetry Overlay */
-    .garmin-deck {
-      position: absolute;
-      bottom: 8px;
       left: 8px;
       right: 8px;
       z-index: 950;
@@ -176,7 +138,7 @@
     }
     .g-value {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 22px;
+      font-size: 21px;
       font-weight: 900;
       line-height: 1.05;
       color: var(--text);
@@ -193,6 +155,48 @@
     .status-high .g-value { color: var(--cyan); }
     .status-low { border-color: var(--danger) !important; }
     .status-low .g-value { color: var(--danger); }
+
+    /* Barra compatta MGRS sotto i campi dati in alto */
+    .mgrs-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      background: rgba(9, 14, 23, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 9px;
+      pointer-events: auto;
+    }
+    .hud-mgrs-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .hud-mgrs-val { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 800; color: var(--cyan); }
+    .hud-target-val { font-family: ui-monospace, monospace; font-size: 12px; font-weight: 700; color: var(--amber); }
+
+    /* Mirino di riferimento centrato in basso sulla posizione */
+    .center-reticle {
+      position: absolute;
+      left: 50%;
+      top: 78%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(56, 189, 248, 0.45);
+      pointer-events: none;
+      z-index: 880;
+    }
+    .center-reticle::before {
+      content: "";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 10px;
+      background: var(--danger);
+      border-radius: 2px;
+    }
 
     /* Second Tab: Target & 5 Alternative DIPs */
     .config-scroll {
@@ -286,29 +290,16 @@
     </div>
   </header>
 
-  <!-- SCHEDA 1: MAPPA A TUTTO SCHERMO + TELEMETRIA GARMIN 64st -->
+  <!-- SCHEDA 1: MAPPA A TUTTO SCHERMO CON DATI IN ALTO E POSIZIONE CENTRATA IN BASSO -->
   <section id="viewMap" class="view active">
     <div id="mapViewport">
-      <div class="lubber-line"></div>
+      <div class="center-reticle"></div>
       <div id="mapRotator">
         <div id="map"></div>
       </div>
 
-      <!-- HUD Superiore MGRS -->
-      <div class="hud-top">
-        <div class="hud-pill">
-          <div class="hud-mgrs-lbl">POSIZIONE (WGRS / MGRS)</div>
-          <div class="hud-mgrs-val" id="hudPosMgrs">ACQUISIZIONE GPS...</div>
-        </div>
-        <div class="hud-pill" style="text-align:right;">
-          <div class="hud-mgrs-lbl" id="hudTargetName">DIP ATTIVO</div>
-          <div class="hud-target-val" id="hudDipMgrs">---</div>
-        </div>
-      </div>
-
-      <!-- Campi Dati Stile Garmin GPSMAP 64st -->
-      <div class="garmin-deck">
-        <!-- Riga 1: Rateo di discesa reale e Rateo a destinazione (Garmin 64st) -->
+      <!-- Campi Dati Garmin GPSMAP 64st + MGRS posizionati IN ALTO -->
+      <div class="top-telemetry-stack">
         <div class="garmin-row-top">
           <div class="g-field">
             <div class="g-label">VEL. VERT. (REALE)</div>
@@ -322,7 +313,6 @@
           </div>
         </div>
 
-        <!-- Riga 2: Distanza dal DIP, Velocita al suolo e Direzione -->
         <div class="garmin-row-bottom">
           <div class="g-field">
             <div class="g-label">DISTANZA DIP</div>
@@ -337,7 +327,18 @@
           <div class="g-field">
             <div class="g-label">DIREZIONE</div>
             <div class="g-value" id="valHeading">000°</div>
-            <div class="g-sub" id="subBrgDip">ROTTA DIP: ---°</div>
+            <div class="g-sub" id="subBrgDip">DIP: ---°</div>
+          </div>
+        </div>
+
+        <div class="mgrs-strip">
+          <div>
+            <div class="hud-mgrs-lbl">POS (WGRS / MGRS)</div>
+            <div class="hud-mgrs-val" id="hudPosMgrs">ACQUISIZIONE GPS...</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="hud-mgrs-lbl" id="hudTargetName">DIP ATTIVO</div>
+            <div class="hud-target-val" id="hudDipMgrs">---</div>
           </div>
         </div>
       </div>
@@ -398,7 +399,6 @@
     const MISSION_KEY = "aeronav_haho_mission_v1";
     const NAV_KEY = "aeronav_haho_nav_v2";
 
-    // Default navigation state
     let navState = {
       harpLat: 43.6812,
       harpLon: 10.5200,
@@ -419,7 +419,6 @@
       if (savedNav && savedNav.mainDip) navState = { ...navState, ...savedNav };
     } catch (e) {}
 
-    // Import planned HARP & DIP from index.html if available
     try {
       const mission = JSON.parse(localStorage.getItem(MISSION_KEY));
       if (mission && Number.isFinite(mission.harpLat) && Number.isFinite(mission.dipLat)) {
@@ -437,7 +436,6 @@
       return navState.altDips[idx] || navState.mainDip;
     }
 
-    // Tabs switching
     document.querySelectorAll(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -445,24 +443,30 @@
         btn.classList.add("active");
         document.getElementById(btn.dataset.tab).classList.add("active");
         if (btn.dataset.tab === "viewMap") {
-          setTimeout(() => map.invalidateSize(), 60);
+          setTimeout(() => {
+            map.invalidateSize();
+            if (currentTelemetry.lat) centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
+          }, 60);
         }
       });
     });
 
-    // Map Initialization
     const activeDip = getActiveDip();
     const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([activeDip.lat, activeDip.lon], 13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
 
+    function centerMapOnPosition(lat, lon) {
+      map.setView([lat, lon], map.getZoom(), { animate: false });
+    }
+
     const jumperIcon = L.divIcon({
-      html: `<div id="jumperArrow" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
-               <svg width="26" height="26" viewBox="0 0 24 24">
+      html: `<div id="jumperArrow" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;">
+               <svg width="28" height="28" viewBox="0 0 24 24">
                  <polygon points="12,2 21,21 12,16 3,21" fill="#38bdf8" stroke="#090e17" stroke-width="2"/>
                </svg>
              </div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
     });
     const dipIcon = L.divIcon({
       html: `<div style="width:20px;height:20px;background:#ef4444;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px #ef4444;"></div>`,
@@ -496,8 +500,7 @@
       opacity: 0.75
     }).addTo(map);
 
-    // Compass & Heading Management
-    let compassMode = true; // true = HDG UP, false = NORTH UP
+    let compassMode = true;
     let autoCenter = true;
     let compassHeading = null;
     let smoothedHeading = 0;
@@ -523,7 +526,6 @@
       }
       if (hdg !== null && Number.isFinite(hdg)) {
         compassHeading = (hdg + 360) % 360;
-        // Exponential smoothing for heading
         const diff = ((compassHeading - smoothedHeading + 540) % 360) - 180;
         smoothedHeading = (smoothedHeading + diff * 0.25 + 360) % 360;
         updateMapRotation();
@@ -557,11 +559,10 @@
       autoCenter = !autoCenter;
       document.getElementById("btnCenter").classList.toggle("on", autoCenter);
       if (autoCenter && currentTelemetry.lat) {
-        map.setView([currentTelemetry.lat, currentTelemetry.lon], map.getZoom());
+        centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
       }
     });
 
-    // Telemetry & Garmin GPSMAP 64st Vertical Speed Algorithm
     let currentTelemetry = {
       lat: null,
       lon: null,
@@ -569,7 +570,7 @@
       speedKt: 0,
       gpsHeading: null
     };
-    const altHistory = []; // { t: ms, altFt: number }
+    const altHistory = [];
     const trailCoords = [];
 
     function updateTelemetry(lat, lon, rawAltM, speedMs, gpsHdg) {
@@ -584,7 +585,6 @@
 
       currentTelemetry = { lat, lon, altFt, speedKt, gpsHeading: gpsHdg };
 
-      // Heading: prefer hardware compass, fallback to GPS course over ground
       let activeHdg = smoothedHeading;
       let hdgSource = "BUSSOLA";
       if (compassHeading === null && typeof gpsHdg === "number" && Number.isFinite(gpsHdg)) {
@@ -594,7 +594,6 @@
         updateMapRotation();
       }
 
-      // Garmin GPSMAP 64st Sliding Window Vertical Speed (4-second window)
       altHistory.push({ t: nowMs, altFt });
       while (altHistory.length > 2 && (nowMs - altHistory[0].t) > 4500) {
         altHistory.shift();
@@ -607,7 +606,6 @@
         }
       }
 
-      // Distance, Bearing & Garmin 64st "Vertical Speed to Destination"
       const target = getActiveDip();
       const distM = AeronavCore.distanceMeters(lat, lon, target.lat, target.lon);
       const distKm = distM / 1000;
@@ -616,8 +614,6 @@
       const speedMpm = (speedKt * AeronavCore.KT_TO_MS) * 60;
       const altToLoseFt = altFt - target.elevFt;
 
-      // Garmin 64st Formula: Vertical Speed to Destination = (TargetAlt - CurrentAlt) / ETE
-      // Negative value indicates required descent rate (e.g., -750 ft/min)
       let vsDestFpm = null;
       let eteStr = "--:--";
       if (speedMpm > 15 && distM > 5) {
@@ -629,7 +625,6 @@
         eteStr = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
       }
 
-      // Update UI Fields
       document.getElementById("hudPosMgrs").textContent = AeronavCore.latLonToMgrs(lat, lon, 5);
       document.getElementById("hudTargetName").textContent = target.name;
       document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
@@ -643,8 +638,7 @@
       if (vsDestFpm !== null) {
         const signDest = vsDestFpm > 5 ? "+" : "";
         document.getElementById("valVsDest").textContent = `${signDest}${Math.round(vsDestFpm)} ft/m`;
-        // Compare real descent rate vs required descent rate to destination
-        const deltaVs = vsRealFpm - vsDestFpm; // e.g., real -700 vs dest -900 => +200 (arriving high)
+        const deltaVs = vsRealFpm - vsDestFpm;
         if (altToLoseFt <= 0) {
           cardDest.classList.add("status-low");
           document.getElementById("subGlideStatus").textContent = "SOTTO QUOTA DIP";
@@ -674,7 +668,6 @@
       document.getElementById("valHeading").textContent = `${String(Math.round(activeHdg)).padStart(3, "0")}°`;
       document.getElementById("subBrgDip").textContent = `DIP: ${String(Math.round(brgToDip)).padStart(3, "0")}° (${hdgSource})`;
 
-      // Update Map Markers & Lines
       jumperMarker.setLatLng([lat, lon]);
       directLine.setLatLngs([[lat, lon], [target.lat, target.lon]]);
       trailCoords.push([lat, lon]);
@@ -682,21 +675,19 @@
       trailLine.setLatLngs(trailCoords);
 
       if (autoCenter) {
-        map.panTo([lat, lon], { animate: false });
+        centerMapOnPosition(lat, lon);
       }
     }
 
-    // Real GPS Watch
-    let watchId = null;
     function startRealGps() {
       if (!("geolocation" in navigator)) return;
-      watchId = navigator.geolocation.watchPosition(
+      navigator.geolocation.watchPosition(
         (pos) => {
           if (simTimer) return;
           const c = pos.coords;
           updateTelemetry(c.latitude, c.longitude, c.altitude, c.speed, c.heading);
         },
-        (err) => {
+        () => {
           document.getElementById("hudPosMgrs").textContent = "GPS NON DISPONIBILE (USA SIM)";
         },
         { enableHighAccuracy: true, maximumAge: 500, timeout: 10000 }
@@ -704,7 +695,6 @@
     }
     startRealGps();
 
-    // Built-in Flight Simulator (SIM button)
     let simTimer = null;
     let simProgress = 0;
     document.getElementById("btnSim").addEventListener("click", () => {
@@ -724,7 +714,7 @@
         const target = getActiveDip();
         const totalDist = AeronavCore.distanceMeters(navState.harpLat, navState.harpLon, target.lat, target.lon);
         const brg = AeronavCore.bearingDegrees(navState.harpLat, navState.harpLon, target.lat, target.lon);
-        const simSpeedKt = 28; // ~14.4 m/s downwind groundspeed
+        const simSpeedKt = 28;
         const stepDist = simSpeedKt * AeronavCore.KT_TO_MS * 0.5;
         simProgress += stepDist;
 
@@ -743,7 +733,6 @@
       }, 500);
     });
 
-    // Config & 5 Alternative DIPs UI
     function renderTargetConfig() {
       document.getElementById("cfgHarpMgrs").value = AeronavCore.latLonToMgrs(navState.harpLat, navState.harpLon, 5);
       document.getElementById("cfgAltOffset").value = navState.altOffsetFt;
@@ -839,9 +828,7 @@
       dipMarker.setLatLng([target.lat, target.lon]);
       idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
 
-      // Switch back to full-screen Map Tab
       document.querySelector('.tab-btn[data-tab="viewMap"]').click();
-      map.fitBounds(L.latLngBounds([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]).pad(0.25));
 
       if (currentTelemetry.lat) {
         updateTelemetry(
@@ -854,15 +841,15 @@
       } else {
         document.getElementById("hudTargetName").textContent = target.name;
         document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
+        centerMapOnPosition(navState.harpLat, navState.harpLon);
       }
     };
 
     renderTargetConfig();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
-    map.fitBounds(L.latLngBounds([[navState.harpLat, navState.harpLon], [activeDip.lat, activeDip.lon]]).pad(0.25));
+    centerMapOnPosition(navState.harpLat, navState.harpLon);
 
-    // PWA Install & Auto-Update
     let deferredPrompt = null;
     AeronavCore.initPwaAutoUpdate((e) => {
       deferredPrompt = e;
