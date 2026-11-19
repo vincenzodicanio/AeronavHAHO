@@ -51,21 +51,24 @@
     }
     .tabs {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       flex: 1 1 auto;
     }
     .tab-btn {
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--muted);
-      padding: 6px 10px;
+      padding: 6px 6px;
       border-radius: 6px;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 800;
       cursor: pointer;
       white-space: nowrap;
       flex: 1 1 0;
       text-align: center;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .tab-btn.active {
       background: var(--accent);
@@ -79,9 +82,9 @@
       gap: 4px;
       flex: 1 1 100%;
     }
-    @media (min-width: 720px) {
+    @media (min-width: 820px) {
       .tabs { flex: 0 0 auto; }
-      .tab-btn { flex: 0 0 auto; }
+      .tab-btn { flex: 0 0 auto; padding: 6px 10px; font-size: 11px; }
       .top-tools { flex: 0 0 auto; justify-content: flex-end; }
     }
     .tool-btn {
@@ -101,7 +104,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (min-width: 720px) {
+    @media (min-width: 820px) {
       .tool-btn { flex: 0 0 auto; padding: 6px 10px; font-size: 11px; }
     }
     .tool-btn.on { background: rgba(56, 189, 248, 0.2); border-color: var(--cyan); color: var(--cyan); }
@@ -327,7 +330,7 @@
       border-radius: 2px;
     }
 
-    /* Second Tab: Target & 5 Alternative DIPs */
+    /* Second & Third Tabs Scroll Container */
     .config-scroll {
       height: 100%;
       overflow-y: auto;
@@ -342,15 +345,15 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 10px;
+      padding: 12px;
     }
     .panel-title {
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: var(--cyan);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -386,13 +389,13 @@
         gap: 6px;
       }
     }
-    label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+    label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 3px; }
     input {
       width: 100%;
       background: #090e17;
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 6px 8px;
+      padding: 7px 8px;
       border-radius: 6px;
       font-size: 12px;
       font-family: ui-monospace, monospace;
@@ -403,7 +406,7 @@
       color: #041309;
       border: none;
       border-radius: 6px;
-      padding: 7px 9px;
+      padding: 8px 10px;
       font-size: 11px;
       font-weight: 800;
       cursor: pointer;
@@ -415,7 +418,7 @@
       color: var(--cyan);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 7px 7px;
+      padding: 8px 8px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
@@ -426,12 +429,118 @@
       color: var(--amber);
       border: 1px solid rgba(245, 158, 11, 0.5);
       border-radius: 6px;
-      padding: 7px 7px;
+      padding: 8px 8px;
       font-size: 11px;
       font-weight: 700;
       cursor: pointer;
       text-align: center;
     }
+
+    /* Segmented Unit Switchers & Compass Calibration Dial */
+    .unit-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: #090e17;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .unit-opt {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 9px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .unit-opt.active {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .compass-cal-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+    }
+    .compass-dial {
+      position: relative;
+      width: 148px;
+      height: 148px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #0f172a 55%, #060a11 100%);
+      border: 2px solid var(--border);
+      box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .compass-rose {
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      transition: transform 0.12s linear;
+    }
+    .compass-rose span {
+      position: absolute;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .c-n { top: 2px; left: 50%; transform: translateX(-50%); color: var(--danger); }
+    .c-s { bottom: 2px; left: 50%; transform: translateX(-50%); color: var(--muted); }
+    .c-e { right: 5px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .c-w { left: 5px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .compass-lubber {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 14px;
+      background: var(--amber);
+      border-radius: 2px;
+      z-index: 5;
+    }
+    .compass-readout {
+      text-align: center;
+      z-index: 4;
+    }
+    .compass-deg-big {
+      font-family: ui-monospace, monospace;
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--cyan);
+      line-height: 1.05;
+    }
+    .compass-sub-lbl {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .cal-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #090e17;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .cal-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--amber), var(--accent));
+      transition: width 0.15s linear;
+    }
+
     .leaflet-div-icon { background: transparent; border: none; }
 
     /* Etichette marker DIP su mappa */
@@ -481,6 +590,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="viewMap">MAPPA</button>
       <button class="tab-btn" data-tab="viewTargets">DIP / ALT (5)</button>
+      <button class="tab-btn" data-tab="viewSettings">IMPOSTAZIONI</button>
       <a href="./index.html" class="tab-btn" style="text-decoration:none; color:var(--amber); border-color:rgba(245,158,11,0.45);">PLANNER</a>
     </div>
     <div class="top-tools">
@@ -537,7 +647,7 @@
           <div class="g-field">
             <div class="g-label">VELOCITÀ</div>
             <div class="g-value" id="valSpeed">0.0 kt</div>
-            <div class="g-sub" id="subSpeedKmh">0 km/h</div>
+            <div class="g-sub" id="subSpeedAlt">0.0 m/s</div>
           </div>
           <div class="g-field">
             <div class="g-label">DIREZIONE</div>
@@ -580,8 +690,8 @@
             <input type="text" id="cfgHarpMgrs" placeholder="32T PP 25000 38820" />
           </div>
           <div>
-            <label>Calibrazione Quota GPS (ft)</label>
-            <input type="number" id="cfgAltOffset" value="0" step="10" />
+            <label>Calibrazione Quota GPS (<span class="unit-alt-txt">ft</span>)</label>
+            <input type="number" id="cfgAltOffset" value="0" step="5" />
           </div>
         </div>
         <div id="row_main" class="alt-row" style="border-bottom:none;">
@@ -594,7 +704,7 @@
             <input type="text" id="mainDipMgrs" value="32T PP 32840 38820" />
           </div>
           <div>
-            <label>Quota (ft)</label>
+            <label>Quota (<span class="unit-alt-txt">ft</span>)</label>
             <input type="number" id="mainDipElev" value="100" />
           </div>
           <div class="alt-actions" style="display:flex; gap:4px;">
@@ -611,6 +721,89 @@
           <span>PREMI ATTIVA PER NAVIGARE</span>
         </div>
         <div id="altDipsContainer"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEDA 3: IMPOSTAZIONI (CALIBRAZIONE BUSSOLA & UNITÀ DI MISURA) -->
+  <section id="viewSettings" class="view">
+    <div class="config-scroll">
+      <!-- Sezione 1: Calibrazione Bussola Magnetica & Offset -->
+      <div class="panel-box">
+        <div class="panel-title">
+          <span>CALIBRAZIONE BUSSOLA MAGNETICA</span>
+          <span id="calStatusBadge" style="color:var(--accent); font-size:10px;">PRONTA</span>
+        </div>
+
+        <div class="compass-cal-box">
+          <div class="compass-dial">
+            <div class="compass-lubber"></div>
+            <div class="compass-rose" id="calCompassRose">
+              <span class="c-n">N</span>
+              <span class="c-e">E</span>
+              <span class="c-s">S</span>
+              <span class="c-w">W</span>
+            </div>
+            <div class="compass-readout">
+              <div class="compass-deg-big" id="calLiveDeg">000°</div>
+              <div class="compass-sub-lbl" id="calRawSub">RAW: ---° | OFF: 0°</div>
+            </div>
+          </div>
+
+          <div class="cal-progress-bar">
+            <div class="cal-progress-fill" id="calProgressFill"></div>
+          </div>
+          <div id="calGuideText" style="font-size:11px; color:var(--muted); text-align:center; line-height:1.35;">
+            Premi <strong>AVVIA CALIBRAZIONE 8</strong> e ruota lo smartphone formando un 8 nello spazio per 10 secondi per azzerare le interferenze magnetiche.
+          </div>
+
+          <div class="grid-2" style="width:100%; margin-top:4px;">
+            <button class="btn-act" id="btnStartCal8" style="background:var(--cyan); color:#04131c;">AVVIA CALIBRAZIONE 8</button>
+            <button class="btn-map-set" id="btnAlignDipHdg">ALLINEA A ROTTA DIP</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--border);">
+          <div class="grid-2" style="align-items:end;">
+            <div>
+              <label>Offset / Declinazione Magnetica (°)</label>
+              <input type="number" id="cfgCompassOffset" min="-180" max="180" step="1" value="0" />
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-dem" style="flex:1;" onclick="adjustCompassOffset(-1)">-1°</button>
+              <button class="btn-dem" style="flex:1;" onclick="adjustCompassOffset(1)">+1°</button>
+              <button class="btn-dem" style="flex:1;" onclick="resetCompassOffset()">0°</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sezione 2: Unità di Misura (ft, m, knots, m/s) -->
+      <div class="panel-box">
+        <div class="panel-title">
+          <span>UNITÀ DI MISURA TELEMETRIA</span>
+          <span style="color:var(--amber); font-size:10px;">SALVATAGGIO AUTOMATICO</span>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label>Quota &amp; Distanza (Altitudine / Distanza DIP)</label>
+          <div class="unit-group">
+            <button type="button" class="unit-opt active" id="optAltFt" data-alt-unit="ft">PIEDI (ft)</button>
+            <button type="button" class="unit-opt" id="optAltM" data-alt-unit="m">METRI (m)</button>
+          </div>
+        </div>
+
+        <div>
+          <label>Velocità Orizzontale &amp; Rateo di Discesa</label>
+          <div class="unit-group">
+            <button type="button" class="unit-opt active" id="optSpdKt" data-spd-unit="kt">NODI (knots)</button>
+            <button type="button" class="unit-opt" id="optSpdMs" data-spd-unit="ms">METRI/SEC (m/s)</button>
+          </div>
+        </div>
+
+        <div id="unitSummaryNote" style="font-size:11px; color:var(--muted); margin-top:10px; line-height:1.4;">
+          Configurazione attiva: quote in <strong style="color:var(--text);">piedi (ft)</strong>, velocità in <strong style="color:var(--text);">nodi (knots)</strong>. Sincronizzata automaticamente anche con il Planner HAHO.
+        </div>
       </div>
     </div>
   </section>
@@ -636,6 +829,9 @@
       harpLon: 10.5200,
       activeId: "main",
       altOffsetFt: 0,
+      compassOffsetDeg: 0,
+      altUnit: "ft",   // "ft" | "m"
+      spdUnit: "kt",   // "kt" | "ms"
       mainDip: { name: "DIP PRIMARIO", lat: 43.6812, lon: 10.6305, elevFt: 100 },
       altDips: [
         { name: "ALT 1 NORD", lat: 43.7050, lon: 10.6250, elevFt: 80 },
@@ -695,6 +891,11 @@
             centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
           }
         }, 60);
+      } else if (tabId === "viewTargets") {
+        renderTargetConfig();
+      } else if (tabId === "viewSettings") {
+        startCompass();
+        renderSettingsUI();
       }
     }
 
@@ -706,7 +907,6 @@
     const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([activeDip.lat, activeDip.lon], 13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
 
-    // Se l'utente fa pinch/zoom manuale sulla mappa, disattiva l'auto-zoom automatico
     map.on("zoomstart", () => {
       if (!programmaticZoom && autoZoom) {
         setAutoZoomState(false);
@@ -717,8 +917,6 @@
       map.setView([lat, lon], map.getZoom(), { animate: false });
     }
 
-    // Calcola e applica lo zoom ottimale per mostrare contemporaneamente la posizione GPS (ancorata al 78% dell'altezza)
-    // e il DIP attivo nell'area libera sotto i campi dati superiori
     function zoomToActiveTrack(animate = false) {
       const target = getActiveDip();
       const originLat = (currentTelemetry.lat !== null && Number.isFinite(currentTelemetry.lat))
@@ -736,7 +934,6 @@
       const viewW = viewportEl ? viewportEl.clientWidth : 360;
       const hudBottomPx = hudEl ? (hudEl.offsetTop + hudEl.offsetHeight) : 185;
 
-      // La posizione GPS e' ancorata al 78% di viewH. La distanza utile verso il bordo superiore libero (sotto HUD) e':
       const reticleY = viewH * 0.78;
       const usableSpanY = Math.max(120, reticleY - hudBottomPx - 24);
       const usableSpanX = Math.max(120, viewW * 0.42);
@@ -899,7 +1096,8 @@
         targetObj.elevFt = elev;
         localStorage.setItem(NAV_KEY, JSON.stringify(navState));
         renderTargetConfig();
-        document.getElementById("cfgMsg").textContent = `${targetObj.name} IMPOSTATO (${elev} ft): PREMI ATTIVA`;
+        const dispElev = navState.altUnit === "m" ? `${Math.round(elev * AeronavCore.FT_TO_M)} m` : `${elev} ft`;
+        document.getElementById("cfgMsg").textContent = `${targetObj.name} IMPOSTATO (${dispElev}): PREMI ATTIVA`;
       } catch (err) {
         document.getElementById("cfgMsg").textContent = `${targetObj.name} IMPOSTATO: PREMI ATTIVA`;
       }
@@ -924,8 +1122,19 @@
 
     let compassMode = true;
     let autoCenter = true;
+    let rawCompassHeading = null;
     let compassHeading = null;
     let smoothedHeading = 0;
+
+    // Stato procedura calibrazione a 8
+    let cal8Active = false;
+    let cal8Timer = null;
+    let cal8Samples = [];
+
+    function applyCompassOffset(rawDeg) {
+      const off = Number(navState.compassOffsetDeg) || 0;
+      return (rawDeg + off + 720) % 360;
+    }
 
     function updateMapRotation() {
       const rotator = document.getElementById("mapRotator");
@@ -943,6 +1152,20 @@
       });
     }
 
+    function updateCalDialUI() {
+      const rose = document.getElementById("calCompassRose");
+      const liveDegEl = document.getElementById("calLiveDeg");
+      const rawSubEl = document.getElementById("calRawSub");
+      const off = Math.round(Number(navState.compassOffsetDeg) || 0);
+      if (!rose || !liveDegEl || !rawSubEl) return;
+
+      const shownHdg = Math.round(smoothedHeading) % 360;
+      rose.style.transform = `rotate(${-shownHdg}deg)`;
+      liveDegEl.textContent = `${String(shownHdg).padStart(3, "0")}°`;
+      const rawTxt = rawCompassHeading !== null ? `${String(Math.round(rawCompassHeading)).padStart(3, "0")}°` : "---°";
+      rawSubEl.textContent = `RAW: ${rawTxt} | OFF: ${off >= 0 ? "+" + off : off}°`;
+    }
+
     function handleDeviceOrientation(e) {
       let hdg = null;
       if (typeof e.webkitCompassHeading === "number") {
@@ -951,10 +1174,16 @@
         hdg = (360 - e.alpha) % 360;
       }
       if (hdg !== null && Number.isFinite(hdg)) {
-        compassHeading = (hdg + 360) % 360;
+        rawCompassHeading = (hdg + 360) % 360;
+        if (cal8Active) {
+          cal8Samples.push(rawCompassHeading);
+        }
+        compassHeading = applyCompassOffset(rawCompassHeading);
         const diff = ((compassHeading - smoothedHeading + 540) % 360) - 180;
         smoothedHeading = (smoothedHeading + diff * 0.25 + 360) % 360;
         updateMapRotation();
+        updateCalDialUI();
+        document.getElementById("valHeading").textContent = `${String(Math.round(smoothedHeading)).padStart(3, "0")}°`;
       }
     }
 
@@ -971,6 +1200,138 @@
       }
     }
     startCompass();
+
+    document.getElementById("btnStartCal8").addEventListener("click", () => {
+      startCompass();
+      if (cal8Active) return;
+      cal8Active = true;
+      cal8Samples = [];
+      const btn = document.getElementById("btnStartCal8");
+      const badge = document.getElementById("calStatusBadge");
+      const guide = document.getElementById("calGuideText");
+      const fill = document.getElementById("calProgressFill");
+
+      btn.textContent = "CALIBRAZIONE IN CORSO...";
+      badge.textContent = "ROTAZIONE 8";
+      badge.style.color = "var(--amber)";
+      guide.textContent = "Muovi il telefono disegnando un 8 ampio nell'aria (beccheggio, rollio e imbardata)...";
+
+      const durationMs = 10000;
+      const startMs = Date.now();
+      cal8Timer = setInterval(() => {
+        const elapsed = Date.now() - startMs;
+        const pct = Math.min(100, (elapsed / durationMs) * 100);
+        fill.style.width = pct + "%";
+
+        if (elapsed >= durationMs) {
+          clearInterval(cal8Timer);
+          cal8Active = false;
+          btn.textContent = "AVVIA CALIBRAZIONE 8";
+          if (cal8Samples.length >= 15) {
+            badge.textContent = "CALIBRATA";
+            badge.style.color = "var(--accent)";
+            guide.textContent = `Calibrazione completata (${cal8Samples.length} campioni magnetometro acquisiti). Puoi rifinire l'offset manuale qui sotto.`;
+          } else {
+            badge.textContent = "SENSORE ASSENTE";
+            badge.style.color = "var(--danger)";
+            guide.textContent = "Nessun dato dal magnetometro rilevato. Verifica i permessi sensori o usa l'offset manuale / GPS.";
+          }
+        }
+      }, 150);
+    });
+
+    document.getElementById("btnAlignDipHdg").addEventListener("click", () => {
+      const target = getActiveDip();
+      const originLat = currentTelemetry.lat || navState.harpLat;
+      const originLon = currentTelemetry.lon || navState.harpLon;
+      const trueBrgToDip = AeronavCore.bearingDegrees(originLat, originLon, target.lat, target.lon);
+      const baseHdg = rawCompassHeading !== null ? rawCompassHeading : smoothedHeading;
+      let newOffset = Math.round(((trueBrgToDip - baseHdg + 540) % 360) - 180);
+      navState.compassOffsetDeg = newOffset;
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      if (rawCompassHeading !== null) {
+        compassHeading = applyCompassOffset(rawCompassHeading);
+        smoothedHeading = compassHeading;
+      } else {
+        smoothedHeading = trueBrgToDip;
+      }
+      updateMapRotation();
+      renderSettingsUI();
+      document.getElementById("calStatusBadge").textContent = "ALLINEATA AL DIP";
+      document.getElementById("calGuideText").textContent = `Prua allineata al rilevamento DIP (${String(Math.round(trueBrgToDip)).padStart(3, "0")}°). Offset salvato: ${newOffset >= 0 ? "+" + newOffset : newOffset}°.`;
+    });
+
+    window.adjustCompassOffset = function(delta) {
+      let next = (Number(navState.compassOffsetDeg) || 0) + delta;
+      if (next > 180) next -= 360;
+      if (next < -180) next += 360;
+      navState.compassOffsetDeg = next;
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      if (rawCompassHeading !== null) {
+        compassHeading = applyCompassOffset(rawCompassHeading);
+        smoothedHeading = compassHeading;
+        updateMapRotation();
+      }
+      renderSettingsUI();
+    };
+
+    window.resetCompassOffset = function() {
+      navState.compassOffsetDeg = 0;
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      if (rawCompassHeading !== null) {
+        compassHeading = rawCompassHeading;
+        smoothedHeading = compassHeading;
+        updateMapRotation();
+      }
+      renderSettingsUI();
+    };
+
+    document.getElementById("cfgCompassOffset").addEventListener("change", (e) => {
+      let val = parseFloat(e.target.value) || 0;
+      val = Math.max(-180, Math.min(180, Math.round(val)));
+      navState.compassOffsetDeg = val;
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      if (rawCompassHeading !== null) {
+        compassHeading = applyCompassOffset(rawCompassHeading);
+        smoothedHeading = compassHeading;
+        updateMapRotation();
+      }
+      renderSettingsUI();
+    });
+
+    function setUnitPreference(type, val) {
+      if (type === "alt" && (val === "ft" || val === "m")) {
+        navState.altUnit = val;
+      } else if (type === "spd" && (val === "kt" || val === "ms")) {
+        navState.spdUnit = val;
+      }
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      renderSettingsUI();
+      renderTargetConfig();
+      refreshTelemetryDisplay();
+    }
+
+    document.querySelectorAll("[data-alt-unit]").forEach(btn => {
+      btn.addEventListener("click", () => setUnitPreference("alt", btn.dataset.altUnit));
+    });
+    document.querySelectorAll("[data-spd-unit]").forEach(btn => {
+      btn.addEventListener("click", () => setUnitPreference("spd", btn.dataset.spdUnit));
+    });
+
+    function renderSettingsUI() {
+      document.getElementById("cfgCompassOffset").value = Math.round(Number(navState.compassOffsetDeg) || 0);
+      updateCalDialUI();
+
+      document.getElementById("optAltFt").classList.toggle("active", navState.altUnit === "ft");
+      document.getElementById("optAltM").classList.toggle("active", navState.altUnit === "m");
+      document.getElementById("optSpdKt").classList.toggle("active", navState.spdUnit === "kt");
+      document.getElementById("optSpdMs").classList.toggle("active", navState.spdUnit === "ms");
+
+      const altLbl = navState.altUnit === "m" ? "metri (m)" : "piedi (ft)";
+      const spdLbl = navState.spdUnit === "ms" ? "metri al secondo (m/s)" : "nodi (knots)";
+      document.getElementById("unitSummaryNote").innerHTML =
+        `Configurazione attiva: quote/distanze in <strong style="color:var(--text);">${altLbl}</strong>, velocità in <strong style="color:var(--text);">${spdLbl}</strong>. Sincronizzata automaticamente anche con il Planner HAHO.`;
+    }
 
     document.getElementById("btnCompass").addEventListener("click", () => {
       startCompass();
@@ -995,7 +1356,9 @@
       lon: null,
       altFt: null,
       speedKt: 0,
-      gpsHeading: null
+      gpsHeading: null,
+      rawAltM: null,
+      speedMs: 0
     };
     const altHistory = [];
     const trailCoords = [];
@@ -1006,7 +1369,27 @@
       return `${val.toFixed(1)}:1`;
     }
 
-    function updateTelemetry(lat, lon, rawAltM, speedMs, gpsHdg) {
+    function refreshTelemetryDisplay() {
+      if (currentTelemetry.lat === null) {
+        const useMeters = navState.altUnit === "m";
+        const useMs = navState.spdUnit === "ms";
+        document.getElementById("subAltMsl").textContent = useMeters ? "QUOTA: -- m MSL" : "QUOTA: -- ft MSL";
+        document.getElementById("valDist").textContent = useMeters ? "-- m" : "-- km";
+        document.getElementById("valSpeed").textContent = useMs ? "0.0 m/s" : "0.0 kt";
+        document.getElementById("subSpeedAlt").textContent = useMs ? "0.0 kt" : "0.0 m/s";
+        return;
+      }
+      updateTelemetry(
+        currentTelemetry.lat,
+        currentTelemetry.lon,
+        currentTelemetry.rawAltM,
+        currentTelemetry.speedMs,
+        currentTelemetry.gpsHeading,
+        true
+      );
+    }
+
+    function updateTelemetry(lat, lon, rawAltM, speedMs, gpsHdg, isRefreshOnly = false) {
       const nowMs = Date.now();
       const altFt = (typeof rawAltM === "number" && Number.isFinite(rawAltM))
         ? rawAltM * AeronavCore.M_TO_FT + navState.altOffsetFt
@@ -1016,21 +1399,24 @@
         ? speedMs * AeronavCore.MS_TO_KT
         : 0;
 
-      currentTelemetry = { lat, lon, altFt, speedKt, gpsHeading: gpsHdg };
+      currentTelemetry = { lat, lon, altFt, speedKt, gpsHeading: gpsHdg, rawAltM, speedMs };
 
       let activeHdg = smoothedHeading;
       let hdgSource = "BUSSOLA";
       if (compassHeading === null && typeof gpsHdg === "number" && Number.isFinite(gpsHdg)) {
-        activeHdg = gpsHdg;
-        smoothedHeading = gpsHdg;
+        activeHdg = applyCompassOffset(gpsHdg);
+        smoothedHeading = activeHdg;
         hdgSource = "GPS";
         updateMapRotation();
       }
 
-      altHistory.push({ t: nowMs, altFt });
-      while (altHistory.length > 2 && (nowMs - altHistory[0].t) > 4500) {
-        altHistory.shift();
+      if (!isRefreshOnly) {
+        altHistory.push({ t: nowMs, altFt });
+        while (altHistory.length > 2 && (nowMs - altHistory[0].t) > 4500) {
+          altHistory.shift();
+        }
       }
+
       let vsRealFpm = 0;
       if (altHistory.length >= 2) {
         const dtMin = (altHistory[altHistory.length - 1].t - altHistory[0].t) / 60000;
@@ -1070,12 +1456,21 @@
         eteStr = `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
       }
 
+      const useMeters = navState.altUnit === "m";
+      const useMs = navState.spdUnit === "ms";
+
       document.getElementById("hudPosMgrs").textContent = AeronavCore.latLonToMgrs(lat, lon, 5);
       document.getElementById("hudTargetName").textContent = target.name;
       document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
 
       document.getElementById("valGlideReal").textContent = formatGlideRatio(realGlideRatio);
-      document.getElementById("subAltMsl").textContent = `QUOTA: ${Math.round(altFt)} ft (AGL: ${Math.round(altToLoseFt)} ft)`;
+      if (useMeters) {
+        const mslM = Math.round(altFt * AeronavCore.FT_TO_M);
+        const aglM = Math.round(altToLoseM);
+        document.getElementById("subAltMsl").textContent = `QUOTA: ${mslM} m (AGL: ${aglM} m)`;
+      } else {
+        document.getElementById("subAltMsl").textContent = `QUOTA: ${Math.round(altFt)} ft (AGL: ${Math.round(altToLoseFt)} ft)`;
+      }
 
       const cardGlide = document.getElementById("cardGlideDest");
       cardGlide.classList.remove("status-ok", "status-high", "status-low");
@@ -1102,22 +1497,35 @@
         document.getElementById("subGlideStatus").textContent = "IN ATTESA DATI";
       }
 
-      document.getElementById("valDist").textContent = distKm >= 1
-        ? `${distKm.toFixed(2)} km`
-        : `${Math.round(distM)} m`;
+      if (useMeters) {
+        document.getElementById("valDist").textContent = distM >= 1000
+          ? `${(distM / 1000).toFixed(2)} km`
+          : `${Math.round(distM)} m`;
+      } else {
+        document.getElementById("valDist").textContent = distKm >= 1
+          ? `${distKm.toFixed(2)} km`
+          : `${Math.round(distM)} m`;
+      }
       document.getElementById("subEte").textContent = `ETE: ${eteStr}`;
 
-      document.getElementById("valSpeed").textContent = `${speedKt.toFixed(1)} kt`;
-      document.getElementById("subSpeedKmh").textContent = `${Math.round(speedKt * 1.852)} km/h`;
+      if (useMs) {
+        document.getElementById("valSpeed").textContent = `${groundSpeedMs.toFixed(1)} m/s`;
+        document.getElementById("subSpeedAlt").textContent = `${speedKt.toFixed(1)} kt`;
+      } else {
+        document.getElementById("valSpeed").textContent = `${speedKt.toFixed(1)} kt`;
+        document.getElementById("subSpeedAlt").textContent = `${groundSpeedMs.toFixed(1)} m/s`;
+      }
 
       document.getElementById("valHeading").textContent = `${String(Math.round(activeHdg)).padStart(3, "0")}°`;
       document.getElementById("subBrgDip").textContent = `DIP: ${String(Math.round(brgToDip)).padStart(3, "0")}° (${hdgSource})`;
 
       jumperMarker.setLatLng([lat, lon]);
       directLine.setLatLngs([[lat, lon], [target.lat, target.lon]]);
-      trailCoords.push([lat, lon]);
-      if (trailCoords.length > 300) trailCoords.shift();
-      trailLine.setLatLngs(trailCoords);
+      if (!isRefreshOnly) {
+        trailCoords.push([lat, lon]);
+        if (trailCoords.length > 300) trailCoords.shift();
+        trailLine.setLatLngs(trailCoords);
+      }
 
       if (autoZoom) {
         zoomToActiveTrack(false);
@@ -1171,7 +1579,7 @@
         const simAltM = (simAltFt - navState.altOffsetFt) * AeronavCore.FT_TO_M;
 
         if (compassHeading === null) {
-          smoothedHeading = brg;
+          smoothedHeading = applyCompassOffset(brg);
           updateMapRotation();
         }
         updateTelemetry(pos.lat, pos.lon, simAltM, simSpeedKt * AeronavCore.KT_TO_MS, brg);
@@ -1180,12 +1588,28 @@
       }, 500);
     });
 
+    function toDisplayAlt(altFt) {
+      return navState.altUnit === "m"
+        ? Math.round(altFt * AeronavCore.FT_TO_M)
+        : Math.round(altFt);
+    }
+
+    function fromDisplayAlt(dispVal) {
+      const num = parseFloat(dispVal) || 0;
+      return navState.altUnit === "m"
+        ? (num * AeronavCore.M_TO_FT)
+        : num;
+    }
+
     function renderTargetConfig() {
+      const uTxt = navState.altUnit === "m" ? "m" : "ft";
+      document.querySelectorAll(".unit-alt-txt").forEach(el => el.textContent = uTxt);
+
       document.getElementById("cfgHarpMgrs").value = AeronavCore.latLonToMgrs(navState.harpLat, navState.harpLon, 5);
-      document.getElementById("cfgAltOffset").value = navState.altOffsetFt;
+      document.getElementById("cfgAltOffset").value = toDisplayAlt(navState.altOffsetFt);
       document.getElementById("mainDipName").value = navState.mainDip.name;
       document.getElementById("mainDipMgrs").value = AeronavCore.latLonToMgrs(navState.mainDip.lat, navState.mainDip.lon, 5);
-      document.getElementById("mainDipElev").value = navState.mainDip.elevFt;
+      document.getElementById("mainDipElev").value = toDisplayAlt(navState.mainDip.elevFt);
 
       const mainRow = document.getElementById("row_main");
       mainRow.classList.remove("selected-row", "active-nav-row");
@@ -1212,8 +1636,8 @@
             <input type="text" id="altMgrs_${idx}" value="${AeronavCore.latLonToMgrs(alt.lat, alt.lon, 5)}" />
           </div>
           <div>
-            <label>Quota (ft)</label>
-            <input type="number" id="altElev_${idx}" value="${alt.elevFt}" />
+            <label>Quota (${uTxt})</label>
+            <input type="number" id="altElev_${idx}" value="${toDisplayAlt(alt.elevFt)}" />
           </div>
           <div class="alt-actions" style="display:flex; gap:4px;">
             <button class="btn-map-set" onclick="pickSlotOnMap(${idx})" title="Posiziona con tap su mappa">MAPPA</button>
@@ -1232,7 +1656,7 @@
         navState.harpLon = h.lon;
       } catch (e) {}
 
-      navState.altOffsetFt = parseFloat(document.getElementById("cfgAltOffset").value) || 0;
+      navState.altOffsetFt = fromDisplayAlt(document.getElementById("cfgAltOffset").value);
 
       try {
         const m = AeronavCore.mgrsToLatLon(document.getElementById("mainDipMgrs").value);
@@ -1240,14 +1664,14 @@
         navState.mainDip.lon = m.lon;
       } catch (e) {}
       navState.mainDip.name = document.getElementById("mainDipName").value || "DIP PRIMARIO";
-      navState.mainDip.elevFt = parseFloat(document.getElementById("mainDipElev").value) || 0;
+      navState.mainDip.elevFt = fromDisplayAlt(document.getElementById("mainDipElev").value);
 
       navState.altDips.forEach((alt, idx) => {
         const nameEl = document.getElementById(`altName_${idx}`);
         const mgrsEl = document.getElementById(`altMgrs_${idx}`);
         const elevEl = document.getElementById(`altElev_${idx}`);
         if (nameEl) alt.name = nameEl.value || `ALT ${idx + 1}`;
-        if (elevEl) alt.elevFt = parseFloat(elevEl.value) || 0;
+        if (elevEl) alt.elevFt = fromDisplayAlt(elevEl.value);
         if (mgrsEl) {
           try {
             const c = AeronavCore.mgrsToLatLon(mgrsEl.value);
@@ -1268,10 +1692,12 @@
       try {
         const elev = await AeronavCore.fetchElevationFt(target.lat, target.lon);
         target.elevFt = elev;
-        if (slot === "main") document.getElementById("mainDipElev").value = elev;
-        else document.getElementById(`altElev_${slot}`).value = elev;
+        const dispVal = toDisplayAlt(elev);
+        const uTxt = navState.altUnit === "m" ? "m" : "ft";
+        if (slot === "main") document.getElementById("mainDipElev").value = dispVal;
+        else document.getElementById(`altElev_${slot}`).value = dispVal;
         localStorage.setItem(NAV_KEY, JSON.stringify(navState));
-        document.getElementById("cfgMsg").textContent = `Quota DEM aggiornata: ${elev} ft`;
+        document.getElementById("cfgMsg").textContent = `Quota DEM aggiornata: ${dispVal} ${uTxt}`;
       } catch (err) {
         document.getElementById("cfgMsg").textContent = "Errore DEM Open-Meteo";
       }
@@ -1307,7 +1733,9 @@
     };
 
     renderTargetConfig();
+    renderSettingsUI();
     renderAllDipMarkers();
+    refreshTelemetryDisplay();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
     zoomToActiveTrack(false);

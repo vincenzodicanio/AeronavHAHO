@@ -2,5 +2,7 @@
 
 Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per la pubblicazione diretta su **GitHub Pages** o qualsiasi hosting statico HTTPS.
 
-## Novità v7
-* **Pulsante `AUTO ZOOM` in basso a destra nel navigatore**: adatta dinamicamente il livello di zoom in tempo reale durante l'avvicinamento affinché sia la **posizione GPS** (nel mirino in basso) sia il **DIP attivo** restino sempre visibili contemporaneamente sullo schermo.
+## Novità v8
+* **Scheda `IMPOSTAZIONI` nel navigatore**:
+  * **Calibrazione Bussola**: quadrante bussola live, procedura guidata di calibrazione magnetometro a 8 (10 secondi), allineamento rapido a rilevamento DIP (`ALLINEA A ROTTA DIP`) e regolazione fine dell'offset / declinazione magnetica (`-180°` / `+180°`).
+  * **Unità di Misura**: commutazione immediata tra **Piedi (`ft`) / Metri (`m`)** per quote e distanze, e **Nodi (`knots`) / Metri al secondo (`m/s`)** per velocità orizzontale e rateo di discesa, sincronizzata tra Navigatore e Planner.

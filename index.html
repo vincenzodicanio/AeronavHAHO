@@ -207,12 +207,12 @@
         </div>
         <div class="grid-2">
           <div>
-            <label>Quota DIP (ft MSL)</label>
-            <input type="number" id="dipElevFt" value="100" step="10" />
+            <label>Quota DIP (<span class="u-alt-lbl">ft</span> MSL)</label>
+            <input type="number" id="dipElev" value="100" step="10" />
           </div>
           <div>
-            <label>Safety Factor (x 1.000 ft)</label>
-            <input type="number" id="safetyFactorKft" value="1.0" step="0.1" min="0" />
+            <label>Safety Factor (<span class="u-sf-lbl">x 1.000 ft</span>)</label>
+            <input type="number" id="safetyFactor" value="1.0" step="0.1" min="0" />
           </div>
         </div>
         <div class="status-msg" id="dipStatus">Trascina il marker rosso o inserisci MGRS.</div>
@@ -222,20 +222,20 @@
         <div class="box-title"><span>2. PROFILO LANCIO &amp; VELA</span></div>
         <div class="grid-3">
           <div>
-            <label>Apertura (ft)</label>
-            <input type="number" id="exitAltFt" value="15000" step="500" />
+            <label>Apertura (<span class="u-alt-lbl">ft</span>)</label>
+            <input type="number" id="exitAlt" value="15000" step="100" />
           </div>
           <div>
             <label>L/D (: 1)</label>
             <input type="number" id="glideRatio" value="3.0" step="0.1" min="0.5" />
           </div>
           <div>
-            <label>Discesa (ft/m)</label>
-            <input type="number" id="sinkRateFpm" value="750" step="25" min="200" />
+            <label>Discesa (<span class="u-vs-lbl">ft/m</span>)</label>
+            <input type="number" id="sinkRate" value="750" step="10" min="50" />
           </div>
         </div>
         <div style="font-size:11px; color:var(--muted); margin-top:6px;">
-          Quota utile planata: <strong id="usableAltLbl" style="color:var(--text);">--</strong> ft
+          Quota utile planata: <strong id="usableAltLbl" style="color:var(--text);">--</strong> <span class="u-alt-lbl">ft</span>
           (Apertura &rarr; DIP + Safety Factor)
         </div>
       </div>
@@ -259,9 +259,9 @@
           <table>
             <thead>
               <tr>
-                <th>Quota (ft)</th>
+                <th>Quota (<span class="u-alt-lbl">ft</span>)</th>
                 <th>Prov. (°)</th>
-                <th>Vel. (kt)</th>
+                <th>Vel. (<span class="u-spd-lbl">kt</span>)</th>
               </tr>
             </thead>
             <tbody id="windTableBody"></tbody>
@@ -277,6 +277,25 @@
   <script src="./mgrs-core.js"></script>
   <script>
     const STATE_KEY = "aeronav_haho_mission_v1";
+    const NAV_KEY = "aeronav_haho_nav_v2";
+
+    // Legge le preferenze di unita' di misura condivise con il navigatore
+    let unitPrefs = { altUnit: "ft", spdUnit: "kt" };
+    try {
+      const savedNav = JSON.parse(localStorage.getItem(NAV_KEY));
+      if (savedNav) {
+        if (savedNav.altUnit === "m" || savedNav.altUnit === "ft") unitPrefs.altUnit = savedNav.altUnit;
+        if (savedNav.spdUnit === "ms" || savedNav.spdUnit === "kt") unitPrefs.spdUnit = savedNav.spdUnit;
+      }
+    } catch (e) {}
+
+    const isMetricAlt = unitPrefs.altUnit === "m";
+    const isMetricSpd = unitPrefs.spdUnit === "ms";
+
+    document.querySelectorAll(".u-alt-lbl").forEach(el => el.textContent = isMetricAlt ? "m" : "ft");
+    document.querySelectorAll(".u-spd-lbl").forEach(el => el.textContent = isMetricSpd ? "m/s" : "kt");
+    document.querySelectorAll(".u-sf-lbl").forEach(el => el.textContent = isMetricAlt ? "x 100 m" : "x 1.000 ft");
+    document.querySelectorAll(".u-vs-lbl").forEach(el => el.textContent = isMetricSpd ? "m/s" : "ft/m");
 
     let state = {
       dipLat: 43.6812,
@@ -371,6 +390,23 @@
       setDipCoordinates(pos.lat, pos.lng, true);
     });
 
+    function syncInputsFromState() {
+      document.getElementById("dipMgrs").value = AeronavCore.latLonToMgrs(state.dipLat, state.dipLon, 5);
+      document.getElementById("dipElev").value = isMetricAlt
+        ? Math.round(state.dipElevFt * AeronavCore.FT_TO_M)
+        : Math.round(state.dipElevFt);
+      document.getElementById("safetyFactor").value = isMetricAlt
+        ? Number(((state.safetyFactorKft * 1000 * AeronavCore.FT_TO_M) / 100).toFixed(1))
+        : Number(state.safetyFactorKft.toFixed(1));
+      document.getElementById("exitAlt").value = isMetricAlt
+        ? Math.round(state.exitAltFt * AeronavCore.FT_TO_M)
+        : Math.round(state.exitAltFt);
+      document.getElementById("glideRatio").value = state.glideRatio;
+      document.getElementById("sinkRate").value = isMetricSpd
+        ? Number(((state.sinkRateFpm / 60) * AeronavCore.FT_TO_M).toFixed(1))
+        : Math.round(state.sinkRateFpm);
+    }
+
     async function setDipCoordinates(lat, lon, fetchMeteo = true) {
       state.dipLat = lat;
       state.dipLon = lon;
@@ -383,7 +419,9 @@
         try {
           const elev = await AeronavCore.fetchElevationFt(lat, lon);
           state.dipElevFt = elev;
-          document.getElementById("dipElevFt").value = elev;
+          document.getElementById("dipElev").value = isMetricAlt
+            ? Math.round(elev * AeronavCore.FT_TO_M)
+            : elev;
         } catch (err) {
           document.getElementById("dipStatus").textContent = "DEM non raggiungibile, uso quota manuale.";
         }
@@ -407,11 +445,17 @@
       const tbody = document.getElementById("windTableBody");
       tbody.innerHTML = "";
       state.winds.forEach((w, idx) => {
+        const dispAlt = isMetricAlt
+          ? Math.round(w.altFt * AeronavCore.FT_TO_M).toLocaleString("it-IT") + " m"
+          : w.altFt.toLocaleString("it-IT") + " ft";
+        const dispSpd = isMetricSpd
+          ? Number((w.spdKt * AeronavCore.KT_TO_MS).toFixed(1))
+          : Math.round(w.spdKt);
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${w.altFt.toLocaleString("it-IT")} ft</td>
+          <td>${dispAlt}</td>
           <td><input type="number" min="0" max="360" value="${w.dirFrom}" data-idx="${idx}" data-field="dirFrom" /></td>
-          <td><input type="number" min="0" max="150" value="${w.spdKt}" data-idx="${idx}" data-field="spdKt" /></td>
+          <td><input type="number" min="0" max="150" step="${isMetricSpd ? "0.5" : "1"}" value="${dispSpd}" data-idx="${idx}" data-field="spd" /></td>
         `;
         tbody.appendChild(tr);
       });
@@ -419,7 +463,12 @@
         inp.addEventListener("change", (e) => {
           const i = parseInt(e.target.dataset.idx, 10);
           const f = e.target.dataset.field;
-          state.winds[i][f] = parseFloat(e.target.value) || 0;
+          const val = parseFloat(e.target.value) || 0;
+          if (f === "dirFrom") {
+            state.winds[i].dirFrom = val;
+          } else if (f === "spd") {
+            state.winds[i].spdKt = isMetricSpd ? (val * AeronavCore.MS_TO_KT) : val;
+          }
           recalculateHarp();
         });
       });
@@ -492,15 +541,21 @@
     }
 
     function recalculateHarp() {
-      state.dipElevFt = parseFloat(document.getElementById("dipElevFt").value) || 0;
-      state.safetyFactorKft = Math.max(0, parseFloat(document.getElementById("safetyFactorKft").value) || 0);
-      state.exitAltFt = parseFloat(document.getElementById("exitAltFt").value) || 15000;
+      const rawElev = parseFloat(document.getElementById("dipElev").value) || 0;
+      const rawSf = Math.max(0, parseFloat(document.getElementById("safetyFactor").value) || 0);
+      const rawExit = parseFloat(document.getElementById("exitAlt").value) || (isMetricAlt ? 4500 : 15000);
+      const rawSink = Math.max(0.5, parseFloat(document.getElementById("sinkRate").value) || (isMetricSpd ? 3.8 : 750));
+
+      state.dipElevFt = isMetricAlt ? (rawElev * AeronavCore.M_TO_FT) : rawElev;
+      state.safetyFactorKft = isMetricAlt ? ((rawSf * 100 * AeronavCore.M_TO_FT) / 1000) : rawSf;
+      state.exitAltFt = isMetricAlt ? (rawExit * AeronavCore.M_TO_FT) : rawExit;
       state.glideRatio = Math.max(0.5, parseFloat(document.getElementById("glideRatio").value) || 3.0);
-      state.sinkRateFpm = Math.max(200, parseFloat(document.getElementById("sinkRateFpm").value) || 750);
+      state.sinkRateFpm = isMetricSpd ? (rawSink * AeronavCore.M_TO_FT * 60) : rawSink;
 
       const targetArrivalAltFt = state.dipElevFt + state.safetyFactorKft * 1000;
       const usableAltFt = Math.max(0, state.exitAltFt - targetArrivalAltFt);
-      document.getElementById("usableAltLbl").textContent = Math.round(usableAltFt).toLocaleString("it-IT");
+      const dispUsable = isMetricAlt ? Math.round(usableAltFt * AeronavCore.FT_TO_M) : Math.round(usableAltFt);
+      document.getElementById("usableAltLbl").textContent = dispUsable.toLocaleString("it-IT");
 
       const sinkRateFps = state.sinkRateFpm / 60;
       const canopyHorizFps = sinkRateFps * state.glideRatio;
@@ -538,7 +593,9 @@
       const bearingToDip = AeronavCore.bearingDegrees(state.harpLat, state.harpLon, state.dipLat, state.dipLon);
 
       document.getElementById("outHarpMgrs").textContent = AeronavCore.latLonToMgrs(state.harpLat, state.harpLon, 5);
-      document.getElementById("outDistKm").textContent = (totalDistM / 1000).toFixed(2) + " km";
+      document.getElementById("outDistKm").textContent = isMetricAlt
+        ? (totalDistM >= 1000 ? (totalDistM / 1000).toFixed(2) + " km" : Math.round(totalDistM) + " m")
+        : (totalDistM / 1000).toFixed(2) + " km";
       document.getElementById("outBearing").textContent = String(Math.round(bearingToDip)).padStart(3, "0") + "°";
       document.getElementById("outTimeMin").textContent = (totalTimeSec / 60).toFixed(1) + " min";
 
@@ -552,13 +609,16 @@
       wpLayer.clearLayers();
       trackPoints.forEach((pt, i) => {
         if (i > 0 && i < trackPoints.length - 1 && Math.round(pt.altFt) % 2500 === 0) {
+          const wpAltLabel = isMetricAlt
+            ? `${Math.round(pt.altFt * AeronavCore.FT_TO_M)} m`
+            : `${Math.round(pt.altFt)} ft`;
           L.circleMarker([pt.lat, pt.lon], {
             radius: 4,
             color: "#38bdf8",
             fillColor: "#090e17",
             fillOpacity: 1,
             weight: 2
-          }).bindTooltip(`${Math.round(pt.altFt)} ft`).addTo(wpLayer);
+          }).bindTooltip(wpAltLabel).addTo(wpLayer);
         }
       });
 
@@ -573,7 +633,7 @@
       localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
 
-    ["dipElevFt", "safetyFactorKft", "exitAltFt", "glideRatio", "sinkRateFpm"].forEach(id => {
+    ["dipElev", "safetyFactor", "exitAlt", "glideRatio", "sinkRate"].forEach(id => {
       document.getElementById(id).addEventListener("input", recalculateHarp);
     });
 
@@ -614,12 +674,7 @@
       a.click();
     });
 
-    document.getElementById("dipMgrs").value = AeronavCore.latLonToMgrs(state.dipLat, state.dipLon, 5);
-    document.getElementById("dipElevFt").value = state.dipElevFt;
-    document.getElementById("safetyFactorKft").value = state.safetyFactorKft;
-    document.getElementById("exitAltFt").value = state.exitAltFt;
-    document.getElementById("glideRatio").value = state.glideRatio;
-    document.getElementById("sinkRateFpm").value = state.sinkRateFpm;
+    syncInputsFromState();
     renderWindTable();
     recalculateHarp();
 
