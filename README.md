@@ -5,6 +5,7 @@ Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per l
 ## Novità v9
 * **Mappe salvate offline**: le porzioni di mappa (stradale e satellite) visualizzate a ogni zoom vengono salvate dal service worker (fino a 5.000 tasselli, poi i più vecchi vengono eliminati) e riutilizzate senza connessione. Pulsante `SVUOTA` nelle Impostazioni. Le zone mai visualizzate restano vuote offline.
 * **Mappa satellitare**: nella scheda `IMPOSTAZIONI` del navigatore nuova sezione `MAPPA DI SFONDO` (Stradale OSM / Satellite Esri World Imagery). La scelta è salvata e applicata anche al Planner (che ha anche un selettore livelli sulla mappa). I tasselli satellitari richiedono connessione dati.
+* **Auto zoom del navigatore**: con `AUTO ZOOM` attivo la mappa contiene sempre posizione corrente e DIP selezionato, anche in `HDG UP` (calcolo nello spazio schermo con rotazione bussola) e tenendo conto dei campi dati in alto; si riadatta anche quando ruota la bussola, si ridimensiona o si gira lo schermo.
 * **Planner più reattivo**: ricalcolo con ritardo di 200 ms mentre si digita, zoom automatico solo quando la traccia esce dalla vista, DEM e venti scaricati in parallelo.
 * **Tracce distinte**: caduta libera (arancio, spessa) e vela aperta (verde), con legenda, frecce di direzione e tooltip con distanza e tempo.
 * **Quota lancio e quota apertura** separate nel Planner (al posto del campo unico "Apertura"). I vecchi dati salvati vengono migrati con lancio = apertura.

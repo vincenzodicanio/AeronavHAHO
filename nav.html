@@ -879,6 +879,7 @@
 
     let pendingSelectedSlot = null;
     let autoZoom = true;
+    let navReady = false; // true a fine inizializzazione (evita calcoli prima che lo stato sia pronto)
     let programmaticZoom = false;
 
     function getActiveDip() {
@@ -924,7 +925,7 @@
     });
 
     const activeDip = getActiveDip();
-    const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([activeDip.lat, activeDip.lon], 13);
+    const map = L.map("map", { zoomControl: false, attributionControl: false, zoomSnap: 0.25 }).setView([activeDip.lat, activeDip.lon], 13);
     const MAP_KEY = "aeronav_haho_maptype_v1";
     let mapType = "osm";
     try { if (localStorage.getItem(MAP_KEY) === "sat") mapType = "sat"; } catch (e) {}
@@ -980,43 +981,136 @@
       map.setView([lat, lon], map.getZoom(), { animate: false });
     }
 
-    function zoomToActiveTrack(animate = false) {
-      const target = getActiveDip();
-      const originLat = (currentTelemetry.lat !== null && Number.isFinite(currentTelemetry.lat))
-        ? currentTelemetry.lat
-        : navState.harpLat;
-      const originLon = (currentTelemetry.lon !== null && Number.isFinite(currentTelemetry.lon))
-        ? currentTelemetry.lon
-        : navState.harpLon;
-
-      const distM = AeronavCore.distanceMeters(originLat, originLon, target.lat, target.lon);
+    // ---- AUTO ZOOM: la mappa deve contenere sempre posizione corrente e DIP selezionato ----
+    // La mappa e' ruotata attorno al mirino (50% x, 78% y del viewport) quando e' attivo HDG UP,
+    // quindi il calcolo e' fatto nello spazio schermo, tenendo conto di rotazione e ingombro dei campi dati.
+    function getAutoZoomFrame() {
       const viewportEl = document.getElementById("mapViewport");
       const hudEl = document.querySelector(".top-telemetry-stack");
+      const W = viewportEl ? viewportEl.clientWidth : 0;
+      const H = viewportEl ? viewportEl.clientHeight : 0;
+      if (!W || !H) return null;
+      const ax = W / 2;
+      const ay = H * 0.78;
+      const hudBottom = hudEl ? (hudEl.offsetTop + hudEl.offsetHeight) : 185;
+      return {
+        W, H, ax, ay,
+        left: 36,
+        right: W - 36,
+        top: Math.min(hudBottom + 28, ay - 60),
+        bottom: Math.max(H - 72, ay + 40)
+      };
+    }
 
-      const viewH = viewportEl ? viewportEl.clientHeight : 640;
-      const viewW = viewportEl ? viewportEl.clientWidth : 360;
-      const hudBottomPx = hudEl ? (hudEl.offsetTop + hudEl.offsetHeight) : 185;
+    function getAutoZoomOrigin() {
+      const hasGps = currentTelemetry.lat !== null && Number.isFinite(currentTelemetry.lat);
+      return {
+        lat: hasGps ? currentTelemetry.lat : navState.harpLat,
+        lon: hasGps ? currentTelemetry.lon : navState.harpLon
+      };
+    }
 
-      const reticleY = viewH * 0.78;
-      const usableSpanY = Math.max(120, reticleY - hudBottomPx - 24);
-      const usableSpanX = Math.max(120, viewW * 0.42);
-      const visibleSpanPx = Math.min(usableSpanY, usableSpanX * 1.45);
+    // Rotazione CSS (senso orario, y verso il basso) di un vettore schermo
+    function rotScreen(x, y, deg) {
+      const a = deg * Math.PI / 180;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      return { x: x * c - y * sn, y: x * sn + y * c };
+    }
 
-      const midLatRad = AeronavCore.toRad((originLat + target.lat) / 2);
-      const metersPerPixelNeeded = Math.max(distM * 1.22, 180) / visibleSpanPx;
-      const zoomFloat = Math.log2((156543.03392 * Math.cos(midLatRad)) / metersPerPixelNeeded);
-      const targetZoom = Math.max(8, Math.min(17, Math.floor(zoomFloat)));
+    function zoomToActiveTrack(animate = false) {
+      const f = getAutoZoomFrame();
+      if (!f) return;
+      const target = getActiveDip();
+      const P = getAutoZoomOrigin();
+      const Z0 = 10;
+      const ZMIN = 3;
+      const ZMAX = 17;
+
+      const p0 = map.project(L.latLng(P.lat, P.lon), Z0);
+      const d0 = map.project(L.latLng(target.lat, target.lon), Z0);
+      const rot = compassMode ? -smoothedHeading : 0;
+      const r = rotScreen(d0.x - p0.x, d0.y - p0.y, rot); // offset schermo del DIP rispetto alla posizione, a zoom Z0
+
+      // k = fattore di scala massimo (rispetto a Z0) che lascia entrambi i punti nell'area utile
+      let k = Infinity;
+      const consider = (num, comp) => {
+        if (Math.abs(comp) < 1e-6) return;
+        const v = Math.max(num, 1) / Math.abs(comp);
+        if (v < k) k = v;
+      };
+      if (autoCenter) {
+        // posizione fissa sul mirino: il DIP deve stare nei margini attorno al mirino
+        if (r.x > 0) consider(f.right - f.ax, r.x); else if (r.x < 0) consider(f.ax - f.left, r.x);
+        if (r.y > 0) consider(f.bottom - f.ay, r.y); else if (r.y < 0) consider(f.ay - f.top, r.y);
+      } else {
+        // mappa libera: i due punti devono stare nel rettangolo utile, centrati
+        consider(f.right - f.left, r.x);
+        consider(f.bottom - f.top, r.y);
+      }
+
+      let z = (k === Infinity) ? ZMAX : Z0 + Math.log2(k);
+      z = Math.floor(z * 4) / 4; // arrotondo per difetto: mai piu' vicino del necessario
+      z = Math.max(ZMIN, Math.min(ZMAX, z));
 
       programmaticZoom = true;
       if (autoCenter) {
-        map.setView([originLat, originLon], targetZoom, { animate });
+        map.setView([P.lat, P.lon], z, { animate });
       } else {
-        const midLat = (originLat + target.lat) / 2;
-        const midLon = (originLon + target.lon) / 2;
-        map.setView([midLat, midLon], targetZoom, { animate });
+        const kz = Math.pow(2, z - Z0);
+        const cx = (f.left + f.right) / 2;
+        const cy = (f.top + f.bottom) / 2;
+        // vettore schermo che porta la posizione al punto tale che il centro dei due punti cada al centro dell'area utile
+        const need = rotScreen((cx - f.ax) - (r.x * kz) / 2, (cy - f.ay) - (r.y * kz) / 2, -rot);
+        const Pz = map.project(L.latLng(P.lat, P.lon), z);
+        const centerLL = map.unproject(L.point(Pz.x - need.x, Pz.y - need.y), z);
+        map.setView(centerLL, z, { animate });
       }
       setTimeout(() => { programmaticZoom = false; }, 120);
     }
+
+    // Controllo leggero (es. quando ruota la bussola): se uno dei due punti esce dall'area utile, ricalcola
+    function ensureAutoZoomContains() {
+      if (!navReady || !autoZoom) return;
+      const f = getAutoZoomFrame();
+      if (!f) return;
+      const rot = compassMode ? -smoothedHeading : 0;
+      const size = map.getSize();
+      const toScreen = (lat, lon) => {
+        const cp = map.latLngToContainerPoint([lat, lon]);
+        const v = rotScreen(cp.x - size.x / 2, cp.y - size.y / 2, rot);
+        return { x: f.ax + v.x, y: f.ay + v.y };
+      };
+      const inside = (q) => q.x >= f.left - 4 && q.x <= f.right + 4 && q.y >= f.top - 4 && q.y <= f.bottom + 4;
+      const P = getAutoZoomOrigin();
+      const T = getActiveDip();
+      if (!inside(toScreen(P.lat, P.lon)) || !inside(toScreen(T.lat, T.lon))) {
+        zoomToActiveTrack(false);
+      }
+    }
+
+    let lastContainCheck = 0;
+    let containTimer = null;
+    function scheduleContainCheck() {
+      const now = performance.now();
+      if (now - lastContainCheck >= 250) {
+        lastContainCheck = now;
+        ensureAutoZoomContains();
+      }
+      clearTimeout(containTimer);
+      containTimer = setTimeout(ensureAutoZoomContains, 300);
+    }
+
+    function onViewportResized() {
+      setTimeout(() => {
+        if (document.getElementById("viewMap").classList.contains("active")) {
+          map.invalidateSize();
+          if (autoZoom) zoomToActiveTrack(false);
+        }
+      }, 200);
+    }
+    window.addEventListener("resize", onViewportResized);
+    window.addEventListener("orientationchange", onViewportResized);
 
     document.getElementById("btnAutoZoom").addEventListener("click", () => {
       const nextState = !autoZoom;
@@ -1213,6 +1307,7 @@
       document.querySelectorAll(".dip-pin-wrap").forEach(el => {
         el.style.transform = `rotate(${rotDeg}deg)`;
       });
+      if (navReady && autoZoom && compassMode) scheduleContainCheck();
     }
 
     function updateCalDialUI() {
@@ -1806,6 +1901,7 @@
     refreshTelemetryDisplay();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
+    navReady = true;
     zoomToActiveTrack(false);
 
     let deferredPrompt = null;

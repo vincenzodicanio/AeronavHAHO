@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'aeronav-haho-v2026-11-19-11';
+const CACHE_VERSION = 'aeronav-haho-v2026-11-19-12';
 // La cache dei tasselli mappa ha nome fisso: NON viene cancellata agli aggiornamenti dell'app
 const TILE_CACHE = 'aeronav-tiles-v1';
 const MAX_TILES = 5000; // oltre questo numero vengono eliminati i tasselli piu' vecchi
