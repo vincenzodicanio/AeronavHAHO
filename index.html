@@ -415,7 +415,7 @@
     try { if (localStorage.getItem(MAP_KEY) === "sat") savedMapType = "sat"; } catch (e) {}
 
     const map = L.map("map", { zoomControl: true }).setView([state.dipLat, state.dipLon], 12);
-    const baseOsm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const baseOsm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
       attribution: "&copy; OpenStreetMap | Open-Meteo"
     });

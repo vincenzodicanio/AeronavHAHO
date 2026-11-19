@@ -789,7 +789,11 @@
           <button type="button" class="unit-opt" id="optMapSat" data-map-type="sat">SATELLITE</button>
         </div>
         <div id="mapSummaryNote" style="font-size:11px; color:var(--muted); margin-top:10px; line-height:1.4;">
-          La mappa satellitare (Esri World Imagery) richiede connessione dati: i tasselli non vengono salvati offline. Sincronizzata anche con il Planner HAHO.
+          Satellite = Esri World Imagery. Le porzioni di mappa che visualizzi (a ogni zoom) vengono salvate automaticamente e riutilizzate offline; le zone mai viste restano vuote senza connessione. Sincronizzata anche con il Planner HAHO.
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px;">
+          <span id="tileCacheInfo" style="font-size:11px; color:var(--muted);">Mappe salvate: --</span>
+          <button type="button" class="btn-dem" id="btnClearTiles" style="padding:6px 10px;">SVUOTA</button>
         </div>
       </div>
 
@@ -911,6 +915,7 @@
       } else if (tabId === "viewSettings") {
         startCompass();
         renderSettingsUI();
+        updateTileCacheInfo();
       }
     }
 
@@ -931,10 +936,29 @@
           maxNativeZoom: 18
         });
       }
-      return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 });
+      return L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 });
     }
 
     let baseLayer = buildBaseLayer(mapType).addTo(map);
+
+    const TILE_CACHE_NAME = "aeronav-tiles-v1";
+
+    async function updateTileCacheInfo() {
+      const el = document.getElementById("tileCacheInfo");
+      if (!el) return;
+      try {
+        const cache = await caches.open(TILE_CACHE_NAME);
+        const n = (await cache.keys()).length;
+        el.textContent = "Mappe salvate offline: " + n.toLocaleString("it-IT") + " tasselli";
+      } catch (e) {
+        el.textContent = "Cache mappe non disponibile";
+      }
+    }
+
+    document.getElementById("btnClearTiles").addEventListener("click", async () => {
+      try { await caches.delete(TILE_CACHE_NAME); } catch (e) {}
+      updateTileCacheInfo();
+    });
 
     function setMapType(type) {
       if (type !== "osm" && type !== "sat") return;

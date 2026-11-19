@@ -3,6 +3,7 @@
 Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per la pubblicazione diretta su **GitHub Pages** o qualsiasi hosting statico HTTPS.
 
 ## Novità v9
+* **Mappe salvate offline**: le porzioni di mappa (stradale e satellite) visualizzate a ogni zoom vengono salvate dal service worker (fino a 5.000 tasselli, poi i più vecchi vengono eliminati) e riutilizzate senza connessione. Pulsante `SVUOTA` nelle Impostazioni. Le zone mai visualizzate restano vuote offline.
 * **Mappa satellitare**: nella scheda `IMPOSTAZIONI` del navigatore nuova sezione `MAPPA DI SFONDO` (Stradale OSM / Satellite Esri World Imagery). La scelta è salvata e applicata anche al Planner (che ha anche un selettore livelli sulla mappa). I tasselli satellitari richiedono connessione dati.
 * **Quota lancio e quota apertura** separate nel Planner (al posto del campo unico "Apertura"). I vecchi dati salvati vengono migrati con lancio = apertura.
 * **Deriva a paracadute chiuso**: il calcolo HARP ora include la caduta libera (lancio → apertura), con ratei di caduta libera impostabile (default 10.500 ft/min ≈ 53 m/s). Il corpo è trasportato solo dal vento; il tratto è mostrato tratteggiato in arancio.
