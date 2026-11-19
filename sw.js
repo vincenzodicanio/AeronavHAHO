@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'aeronav-haho-v2026-11-19-04';
+const CACHE_VERSION = 'aeronav-haho-v2026-11-19-05';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

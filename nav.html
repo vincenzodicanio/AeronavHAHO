@@ -89,8 +89,6 @@
       overflow: hidden;
       background: #090e17;
     }
-    /* Pivot del contenitore mappa spostato al 78% dell'altezza schermo:
-       la posizione GPS attuale e' centrata nella parte bassa dello schermo */
     #mapRotator {
       position: absolute;
       width: 190vmax;
@@ -255,10 +253,20 @@
       grid-template-columns: 1.1fr 1.6fr 0.7fr auto;
       gap: 6px;
       align-items: end;
-      padding: 8px 0;
+      padding: 8px 6px;
+      border-radius: 6px;
       border-bottom: 1px solid rgba(40, 54, 79, 0.7);
+      transition: background 0.2s, border-color 0.2s;
     }
     .alt-row:last-child { border-bottom: none; }
+    .alt-row.selected-row {
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.65);
+    }
+    .alt-row.active-nav-row {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.6);
+    }
     @media (max-width: 600px) {
       .alt-row { grid-template-columns: 1fr 1fr; }
     }
@@ -357,7 +365,7 @@
     </div>
     <div class="top-tools">
       <button id="btnInstall" class="tool-btn on" style="display:none;">INSTALLA</button>
-      <button id="btnTapDip" class="tool-btn" title="Tocca un punto su mappa per impostare nuovo DIP">TAP DIP</button>
+      <button id="btnTapDip" class="tool-btn" title="Tocca un punto su mappa per impostare DIP alternato">TAP DIP</button>
       <button id="btnCompass" class="tool-btn on" title="Orientamento Bussola">HDG UP</button>
       <button id="btnCenter" class="tool-btn on" title="Centra su GPS">GPS</button>
       <button id="btnSim" class="tool-btn" title="Simulatore Volo">SIM</button>
@@ -422,7 +430,7 @@
 
         <!-- Banner attivo quando si seleziona un punto con tap su mappa -->
         <div id="tapBanner" class="tap-banner">
-          TOCCA UN DIP ESISTENTE O UN PUNTO QUALSIASI SULLA MAPPA PER NAVIGARCI
+          TOCCA UN DIP ESISTENTE O UN PUNTO SULLA MAPPA PER SELEZIONARLO
         </div>
       </div>
     </div>
@@ -446,7 +454,7 @@
             <input type="number" id="cfgAltOffset" value="0" step="10" />
           </div>
         </div>
-        <div class="alt-row" style="border-bottom:none; padding-bottom:0;">
+        <div id="row_main" class="alt-row" style="border-bottom:none;">
           <div>
             <label>Nome DIP Principale</label>
             <input type="text" id="mainDipName" value="DIP PRIMARIO" />
@@ -470,7 +478,7 @@
       <div class="panel-box">
         <div class="panel-title">
           <span>5 DIP ALTERNATIVI DI EMERGENZA (MGRS O TAP MAPPA)</span>
-          <span>TOCCA MARKER SU MAPPA</span>
+          <span>PREMI ATTIVA PER NAVIGARE</span>
         </div>
         <div id="altDipsContainer"></div>
       </div>
@@ -514,27 +522,33 @@
       }
     } catch (e) {}
 
+    let pendingSelectedSlot = null;
+
     function getActiveDip() {
       if (navState.activeId === "main") return navState.mainDip;
       const idx = parseInt(navState.activeId, 10);
       return navState.altDips[idx] || navState.mainDip;
     }
 
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+      if (btn) btn.classList.add("active");
+      const view = document.getElementById(tabId);
+      if (view) view.classList.add("active");
+      if (tabId === "viewMap") {
+        setTimeout(() => {
+          map.invalidateSize();
+          if (autoCenter && currentTelemetry.lat) {
+            centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
+          }
+        }, 60);
+      }
+    }
+
     document.querySelectorAll(".tab-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-        document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-        btn.classList.add("active");
-        document.getElementById(btn.dataset.tab).classList.add("active");
-        if (btn.dataset.tab === "viewMap") {
-          setTimeout(() => {
-            map.invalidateSize();
-            if (autoCenter && currentTelemetry.lat) {
-              centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
-            }
-          }, 60);
-        }
-      });
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
 
     const activeDip = getActiveDip();
@@ -597,7 +611,6 @@
     function renderAllDipMarkers() {
       dipMarkersLayer.clearLayers();
 
-      // Marker DIP Principale
       const isMainActive = navState.activeId === "main";
       const mainM = L.marker([navState.mainDip.lat, navState.mainDip.lon], {
         icon: createDipMarkerIcon(navState.mainDip.name, isMainActive),
@@ -606,10 +619,9 @@
 
       mainM.on("click", (e) => {
         L.DomEvent.stopPropagation(e);
-        selectDipFromMap("main");
+        returnToDipTabWithSelection("main");
       });
 
-      // Marker dei 5 DIP Alternativi
       navState.altDips.forEach((alt, idx) => {
         const isAltActive = navState.activeId === String(idx);
         const m = L.marker([alt.lat, alt.lon], {
@@ -619,42 +631,27 @@
 
         m.on("click", (e) => {
           L.DomEvent.stopPropagation(e);
-          selectDipFromMap(String(idx));
+          returnToDipTabWithSelection(String(idx));
         });
       });
     }
 
-    // Selezione immediata con tap su uno dei marker DIP presenti sulla mappa
-    function selectDipFromMap(slot) {
-      navState.activeId = String(slot);
-      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+    // Una volta scelto il DIP alternato sulla mappa, torna alla scheda DIP / ALT (5) evidenziando lo slot selezionato
+    function returnToDipTabWithSelection(slot) {
+      setTapDipMode(null);
+      pendingSelectedSlot = String(slot);
+      renderTargetConfig();
+      switchTab("viewTargets");
 
-      const target = getActiveDip();
-      const originLat = currentTelemetry.lat || navState.harpLat;
-      const originLon = currentTelemetry.lon || navState.harpLon;
-
-      renderAllDipMarkers();
-      idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
-      directLine.setLatLngs([[originLat, originLon], [target.lat, target.lon]]);
-
-      if (currentTelemetry.lat) {
-        updateTelemetry(
-          currentTelemetry.lat,
-          currentTelemetry.lon,
-          (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
-          currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
-          currentTelemetry.gpsHeading
-        );
-      } else {
-        document.getElementById("hudTargetName").textContent = target.name;
-        document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
+      const rowEl = document.getElementById(`row_${slot}`);
+      if (rowEl) {
+        rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-
-      zoomToActiveTrack();
+      const targetObj = slot === "main" ? navState.mainDip : navState.altDips[parseInt(slot, 10)];
+      document.getElementById("cfgMsg").textContent = `SELEZIONATO ${targetObj.name}: PREMI ATTIVA PER NAVIGARE`;
     }
 
-    // Modalita' "TAP DIP": tocca un punto qualsiasi sulla mappa per creare/spostare un DIP alternativo e navigarci
-    let tapAssignSlot = null; // null = off, "quick" = assegna al prossimo/ultimo alt, oppure "main" / "0".."4"
+    let tapAssignSlot = null;
 
     function setTapDipMode(slotOrNull) {
       tapAssignSlot = slotOrNull;
@@ -664,7 +661,7 @@
         btn.classList.add("pick-on");
         banner.classList.add("visible");
         banner.textContent = tapAssignSlot === "quick"
-          ? "TOCCA UN MARKER DIP O UN PUNTO SULLA MAPPA PER NAVIGARCI"
+          ? "TOCCA UN DIP ESISTENTE O UN PUNTO SULLA MAPPA PER SELEZIONARLO"
           : `TOCCA SULLA MAPPA PER POSIZIONARE ${tapAssignSlot === "main" ? navState.mainDip.name : navState.altDips[tapAssignSlot].name}`;
       } else {
         btn.classList.remove("pick-on");
@@ -682,55 +679,43 @@
 
     window.pickSlotOnMap = function(slot) {
       syncConfigFromInputs();
-      document.querySelector('.tab-btn[data-tab="viewMap"]').click();
+      switchTab("viewMap");
       setTimeout(() => {
-        map.invalidateSize();
         setTapDipMode(String(slot));
-      }, 60);
+      }, 70);
     };
 
+    // Tap su un punto qualsiasi della mappa quando TAP DIP o MAPPA e' attivo:
+    // aggiorna le coordinate (e DEM) dello slot scelto e torna alla scheda DIP / ALT (5)
     map.on("click", async (e) => {
       if (tapAssignSlot === null) return;
 
       const lat = e.latlng.lat;
       const lon = e.latlng.lng;
-      let targetSlot = tapAssignSlot;
-
-      // Se attivato dal pulsante rapido "TAP DIP", aggiorna l'alternativo 5 (o quello attualmente selezionato se e' gia' un alt)
-      if (targetSlot === "quick") {
-        targetSlot = (navState.activeId !== "main") ? navState.activeId : "4";
-      }
-
-      setTapDipMode(null);
+      const targetSlot = tapAssignSlot === "quick" ? "4" : tapAssignSlot;
 
       const targetObj = targetSlot === "main" ? navState.mainDip : navState.altDips[parseInt(targetSlot, 10)];
       targetObj.lat = lat;
       targetObj.lon = lon;
-      if (tapAssignSlot === "quick" && targetSlot === "4") {
-        targetObj.name = "ALT TAP MAP";
+      if (tapAssignSlot === "quick") {
+        targetObj.name = "ALT 5 MAPPA";
       }
 
-      navState.activeId = String(targetSlot);
       localStorage.setItem(NAV_KEY, JSON.stringify(navState));
-      renderTargetConfig();
-      selectDipFromMap(targetSlot);
+      renderAllDipMarkers();
+      returnToDipTabWithSelection(targetSlot);
 
-      // Aggiorna quota terreno DEM Open-Meteo in background e ricalcola efficienza richiesta
+      // Scarica automaticamente la quota terreno DEM Open-Meteo e aggiorna la riga nella scheda DIP / ALT (5)
+      document.getElementById("cfgMsg").textContent = `LETTURA QUOTA DEM PER ${targetObj.name}...`;
       try {
         const elev = await AeronavCore.fetchElevationFt(lat, lon);
         targetObj.elevFt = elev;
         localStorage.setItem(NAV_KEY, JSON.stringify(navState));
         renderTargetConfig();
-        if (currentTelemetry.lat) {
-          updateTelemetry(
-            currentTelemetry.lat,
-            currentTelemetry.lon,
-            (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
-            currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
-            currentTelemetry.gpsHeading
-          );
-        }
-      } catch (err) {}
+        document.getElementById("cfgMsg").textContent = `${targetObj.name} IMPOSTATO (${elev} ft): PREMI ATTIVA`;
+      } catch (err) {
+        document.getElementById("cfgMsg").textContent = `${targetObj.name} IMPOSTATO: PREMI ATTIVA`;
+      }
     });
 
     const idealLine = L.polyline([[navState.harpLat, navState.harpLon], [activeDip.lat, activeDip.lon]], {
@@ -766,7 +751,6 @@
         rotator.style.transform = `translate(-50%, -50%) rotate(0deg)`;
         if (arrow) arrow.style.transform = `rotate(${smoothedHeading}deg)`;
       }
-      // Mantiene dritte e leggibili le etichette dei DIP durante la rotazione bussola
       document.querySelectorAll(".dip-pin-wrap").forEach(el => {
         el.style.transform = `rotate(${rotDeg}deg)`;
       });
@@ -855,7 +839,6 @@
         updateMapRotation();
       }
 
-      // Finestra scorrevole 4 secondi per rateo di discesa reale (ft/min)
       altHistory.push({ t: nowMs, altFt });
       while (altHistory.length > 2 && (nowMs - altHistory[0].t) > 4500) {
         altHistory.shift();
@@ -1016,11 +999,21 @@
       document.getElementById("mainDipMgrs").value = AeronavCore.latLonToMgrs(navState.mainDip.lat, navState.mainDip.lon, 5);
       document.getElementById("mainDipElev").value = navState.mainDip.elevFt;
 
+      const mainRow = document.getElementById("row_main");
+      mainRow.classList.remove("selected-row", "active-nav-row");
+      if (pendingSelectedSlot === "main") mainRow.classList.add("selected-row");
+      else if (navState.activeId === "main") mainRow.classList.add("active-nav-row");
+
       const cont = document.getElementById("altDipsContainer");
       cont.innerHTML = "";
       navState.altDips.forEach((alt, idx) => {
+        const slotStr = String(idx);
         const row = document.createElement("div");
+        row.id = `row_${idx}`;
         row.className = "alt-row";
+        if (pendingSelectedSlot === slotStr) row.classList.add("selected-row");
+        else if (navState.activeId === slotStr) row.classList.add("active-nav-row");
+
         row.innerHTML = `
           <div>
             <label>Alt ${idx + 1} Nome</label>
@@ -1096,14 +1089,33 @@
       }
     };
 
+    // Quando si seleziona ATTIVA nella scheda DIP / ALT (5), apre la mappa con il DIP attivato e ricalcolato
     window.activateTarget = function(slot) {
       syncConfigFromInputs();
-      document.querySelector('.tab-btn[data-tab="viewMap"]').click();
+      pendingSelectedSlot = null;
+      navState.activeId = String(slot);
+      localStorage.setItem(NAV_KEY, JSON.stringify(navState));
+      renderTargetConfig();
+
+      switchTab("viewMap");
 
       setTimeout(() => {
         map.invalidateSize();
+        const target = getActiveDip();
+        const originLat = currentTelemetry.lat || navState.harpLat;
+        const originLon = currentTelemetry.lon || navState.harpLon;
+
         harpMarker.setLatLng([navState.harpLat, navState.harpLon]);
-        selectDipFromMap(String(slot));
+        renderAllDipMarkers();
+        idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
+        directLine.setLatLngs([[originLat, originLon], [target.lat, target.lon]]);
+
+        // Ricalcola subito distanza, rotta, efficienza richiesta e MGRS verso il DIP attivato
+        const simOrLastAltM = ((currentTelemetry.altFt || 14000) - navState.altOffsetFt) * AeronavCore.FT_TO_M;
+        const simOrLastSpdMs = (currentTelemetry.speedKt || 0) * AeronavCore.KT_TO_MS;
+        updateTelemetry(originLat, originLon, simOrLastAltM, simOrLastSpdMs, currentTelemetry.gpsHeading);
+
+        zoomToActiveTrack();
       }, 90);
     };
 
