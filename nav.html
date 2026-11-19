@@ -35,7 +35,7 @@
       overflow: hidden;
     }
 
-    /* Top Bar Responsive: su schermi stretti si organizza su 2 righe pulite senza mai uscire dallo schermo */
+    /* Top Bar Responsive */
     .topbar {
       background: #060a11;
       border-bottom: 1px solid var(--border);
@@ -141,6 +141,44 @@
       transition: transform 0.15s linear;
     }
     #map { width: 100%; height: 100%; }
+
+    /* Pulsante Floating AUTO ZOOM in basso a destra */
+    .fab-autozoom {
+      position: absolute;
+      right: 12px;
+      bottom: 18px;
+      z-index: 980;
+      background: rgba(9, 14, 23, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      padding: 10px 13px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+      transition: all 0.18s ease;
+      user-select: none;
+    }
+    .fab-autozoom:active { transform: scale(0.96); }
+    .fab-autozoom.on {
+      background: rgba(34, 197, 94, 0.22);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 14px rgba(34, 197, 94, 0.35);
+    }
+    .fab-autozoom svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.3;
+    }
 
     /* Campi Dati Garmin GPSMAP 64st + MGRS posizionati IN ALTO */
     .top-telemetry-stack {
@@ -462,9 +500,20 @@
         <div id="map"></div>
       </div>
 
+      <!-- Pulsante Floating AUTO ZOOM in basso a destra -->
+      <button id="btnAutoZoom" class="fab-autozoom on" title="Zoom automatico tra posizione GPS e DIP attivo">
+        <svg viewBox="0 0 24 24">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+        <span>AUTO ZOOM</span>
+      </button>
+
       <!-- Campi Dati Garmin GPSMAP 64st + MGRS posizionati IN ALTO -->
       <div class="top-telemetry-stack">
-        <!-- Riga 1: Efficienza Reale e Efficienza a Destinazione (formato Garmin 64st: X.X:1) -->
+        <!-- Riga 1: Efficienza Reale e Efficienza a Destinazione -->
         <div class="garmin-row-top">
           <div class="g-field">
             <div class="g-label">EFFICIENZA (REALE)</div>
@@ -614,11 +663,19 @@
     } catch (e) {}
 
     let pendingSelectedSlot = null;
+    let autoZoom = true;
+    let programmaticZoom = false;
 
     function getActiveDip() {
       if (navState.activeId === "main") return navState.mainDip;
       const idx = parseInt(navState.activeId, 10);
       return navState.altDips[idx] || navState.mainDip;
+    }
+
+    function setAutoZoomState(enabled) {
+      autoZoom = Boolean(enabled);
+      const btn = document.getElementById("btnAutoZoom");
+      if (btn) btn.classList.toggle("on", autoZoom);
     }
 
     function switchTab(tabId) {
@@ -632,7 +689,9 @@
       if (tabId === "viewMap") {
         setTimeout(() => {
           map.invalidateSize();
-          if (autoCenter && currentTelemetry.lat) {
+          if (autoZoom) {
+            zoomToActiveTrack(false);
+          } else if (autoCenter && currentTelemetry.lat) {
             centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
           }
         }, 60);
@@ -647,25 +706,67 @@
     const map = L.map("map", { zoomControl: false, attributionControl: false }).setView([activeDip.lat, activeDip.lon], 13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
 
+    // Se l'utente fa pinch/zoom manuale sulla mappa, disattiva l'auto-zoom automatico
+    map.on("zoomstart", () => {
+      if (!programmaticZoom && autoZoom) {
+        setAutoZoomState(false);
+      }
+    });
+
     function centerMapOnPosition(lat, lon) {
       map.setView([lat, lon], map.getZoom(), { animate: false });
     }
 
-    function zoomToActiveTrack() {
+    // Calcola e applica lo zoom ottimale per mostrare contemporaneamente la posizione GPS (ancorata al 78% dell'altezza)
+    // e il DIP attivo nell'area libera sotto i campi dati superiori
+    function zoomToActiveTrack(animate = false) {
       const target = getActiveDip();
-      const originLat = currentTelemetry.lat || navState.harpLat;
-      const originLon = currentTelemetry.lon || navState.harpLon;
+      const originLat = (currentTelemetry.lat !== null && Number.isFinite(currentTelemetry.lat))
+        ? currentTelemetry.lat
+        : navState.harpLat;
+      const originLon = (currentTelemetry.lon !== null && Number.isFinite(currentTelemetry.lon))
+        ? currentTelemetry.lon
+        : navState.harpLon;
 
       const distM = AeronavCore.distanceMeters(originLat, originLon, target.lat, target.lon);
-      const viewH = document.getElementById("mapViewport").clientHeight || 640;
-      const visibleSpanPx = Math.max(220, viewH * 0.48);
-      const midLatRad = AeronavCore.toRad((originLat + target.lat) / 2);
-      const metersPerPixelNeeded = Math.max(distM * 1.35, 300) / visibleSpanPx;
-      const zoomFloat = Math.log2((156543.03392 * Math.cos(midLatRad)) / metersPerPixelNeeded);
-      const targetZoom = Math.max(8, Math.min(16, Math.floor(zoomFloat)));
+      const viewportEl = document.getElementById("mapViewport");
+      const hudEl = document.querySelector(".top-telemetry-stack");
 
-      map.setView([originLat, originLon], targetZoom, { animate: true });
+      const viewH = viewportEl ? viewportEl.clientHeight : 640;
+      const viewW = viewportEl ? viewportEl.clientWidth : 360;
+      const hudBottomPx = hudEl ? (hudEl.offsetTop + hudEl.offsetHeight) : 185;
+
+      // La posizione GPS e' ancorata al 78% di viewH. La distanza utile verso il bordo superiore libero (sotto HUD) e':
+      const reticleY = viewH * 0.78;
+      const usableSpanY = Math.max(120, reticleY - hudBottomPx - 24);
+      const usableSpanX = Math.max(120, viewW * 0.42);
+      const visibleSpanPx = Math.min(usableSpanY, usableSpanX * 1.45);
+
+      const midLatRad = AeronavCore.toRad((originLat + target.lat) / 2);
+      const metersPerPixelNeeded = Math.max(distM * 1.22, 180) / visibleSpanPx;
+      const zoomFloat = Math.log2((156543.03392 * Math.cos(midLatRad)) / metersPerPixelNeeded);
+      const targetZoom = Math.max(8, Math.min(17, Math.floor(zoomFloat)));
+
+      programmaticZoom = true;
+      if (autoCenter) {
+        map.setView([originLat, originLon], targetZoom, { animate });
+      } else {
+        const midLat = (originLat + target.lat) / 2;
+        const midLon = (originLon + target.lon) / 2;
+        map.setView([midLat, midLon], targetZoom, { animate });
+      }
+      setTimeout(() => { programmaticZoom = false; }, 120);
     }
+
+    document.getElementById("btnAutoZoom").addEventListener("click", () => {
+      const nextState = !autoZoom;
+      setAutoZoomState(nextState);
+      if (nextState) {
+        autoCenter = true;
+        document.getElementById("btnCenter").classList.add("on");
+        zoomToActiveTrack(true);
+      }
+    });
 
     const jumperIcon = L.divIcon({
       html: `<div id="jumperArrow" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;">
@@ -884,7 +985,8 @@
       autoCenter = !autoCenter;
       document.getElementById("btnCenter").classList.toggle("on", autoCenter);
       if (autoCenter && currentTelemetry.lat) {
-        centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
+        if (autoZoom) zoomToActiveTrack(false);
+        else centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
       }
     });
 
@@ -1017,7 +1119,9 @@
       if (trailCoords.length > 300) trailCoords.shift();
       trailLine.setLatLngs(trailCoords);
 
-      if (autoCenter) {
+      if (autoZoom) {
+        zoomToActiveTrack(false);
+      } else if (autoCenter) {
         centerMapOnPosition(lat, lon);
       }
     }
@@ -1179,6 +1283,7 @@
       navState.activeId = String(slot);
       localStorage.setItem(NAV_KEY, JSON.stringify(navState));
       renderTargetConfig();
+      setAutoZoomState(true);
 
       switchTab("viewMap");
 
@@ -1197,7 +1302,7 @@
         const simOrLastSpdMs = (currentTelemetry.speedKt || 0) * AeronavCore.KT_TO_MS;
         updateTelemetry(originLat, originLon, simOrLastAltM, simOrLastSpdMs, currentTelemetry.gpsHeading);
 
-        zoomToActiveTrack();
+        zoomToActiveTrack(true);
       }, 90);
     };
 
@@ -1205,7 +1310,7 @@
     renderAllDipMarkers();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
-    zoomToActiveTrack();
+    zoomToActiveTrack(false);
 
     let deferredPrompt = null;
     AeronavCore.initPwaAutoUpdate((e) => {
