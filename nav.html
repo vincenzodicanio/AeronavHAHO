@@ -34,6 +34,12 @@
       color: var(--text);
       overflow: hidden;
     }
+    /* Shell dell'app bloccata: nessuno scroll del documento (la barra in alto non puo' essere spostata fuori schermo) */
+    body {
+      position: fixed;
+      inset: 0;
+      overscroll-behavior: none;
+    }
 
     /* Top Bar Responsive */
     .topbar {
@@ -47,6 +53,7 @@
       gap: 6px;
       z-index: 1200;
       position: relative;
+      flex: none;
       width: 100%;
     }
     .tabs {
@@ -118,6 +125,7 @@
 
     /* Tab Views */
     .view {
+      overflow: hidden;
       display: none;
       height: calc(100vh - var(--topbar-h));
       height: calc(100dvh - var(--topbar-h));
@@ -833,6 +841,24 @@
     const MISSION_KEY = "aeronav_haho_mission_v1";
     const NAV_KEY = "aeronav_haho_nav_v2";
 
+    // Se per qualsiasi motivo documento o contenitori mappa vengono scrollati, riporta tutto a zero
+    function resetShellScroll() {
+      const se = document.scrollingElement || document.documentElement;
+      if (se.scrollTop || se.scrollLeft) { se.scrollTop = 0; se.scrollLeft = 0; }
+      if (document.body.scrollTop || document.body.scrollLeft) { document.body.scrollTop = 0; document.body.scrollLeft = 0; }
+      ["mapViewport", "viewMap", "viewTargets", "viewSettings"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && (el.scrollTop || el.scrollLeft)) { el.scrollTop = 0; el.scrollLeft = 0; }
+      });
+    }
+    window.addEventListener("scroll", (e) => {
+      const t = e.target;
+      if (t === document || t === document.documentElement || t === document.body ||
+          (t && (t.id === "mapViewport" || t.id === "viewMap" || t.id === "viewTargets" || t.id === "viewSettings"))) {
+        resetShellScroll();
+      }
+    }, true);
+
     function syncTopbarHeight() {
       const tb = document.getElementById("topbar");
       if (tb) {
@@ -925,7 +951,8 @@
     });
 
     const activeDip = getActiveDip();
-    const map = L.map("map", { zoomControl: false, attributionControl: false, zoomSnap: 0.25 }).setView([activeDip.lat, activeDip.lon], 13);
+    L.Marker.mergeOptions({ keyboard: false });
+    const map = L.map("map", { zoomControl: false, attributionControl: false, zoomSnap: 0.25, keyboard: false }).setView([activeDip.lat, activeDip.lon], 13);
     const MAP_KEY = "aeronav_haho_maptype_v1";
     let mapType = "osm";
     try { if (localStorage.getItem(MAP_KEY) === "sat") mapType = "sat"; } catch (e) {}
@@ -1112,7 +1139,10 @@
     window.addEventListener("resize", onViewportResized);
     window.addEventListener("orientationchange", onViewportResized);
 
-    document.getElementById("btnAutoZoom").addEventListener("click", () => {
+    document.getElementById("btnAutoZoom").addEventListener("click", (ev) => {
+      if (ev.currentTarget && ev.currentTarget.blur) ev.currentTarget.blur();
+      setTimeout(resetShellScroll, 0);
+      setTimeout(resetShellScroll, 400);
       const nextState = !autoZoom;
       setAutoZoomState(nextState);
       if (nextState) {
