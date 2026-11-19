@@ -83,7 +83,7 @@
       background: #090e17;
     }
     /* Pivot del contenitore mappa spostato al 78% dell'altezza schermo:
-       in questo modo la posizione GPS attuale e' centrata nella parte bassa dello schermo */
+       la posizione GPS attuale e' centrata nella parte bassa dello schermo */
     #mapRotator {
       position: absolute;
       width: 190vmax;
@@ -138,7 +138,7 @@
     }
     .g-value {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 21px;
+      font-size: 22px;
       font-weight: 900;
       line-height: 1.05;
       color: var(--text);
@@ -290,7 +290,7 @@
     </div>
   </header>
 
-  <!-- SCHEDA 1: MAPPA A TUTTO SCHERMO CON DATI IN ALTO E POSIZIONE CENTRATA IN BASSO -->
+  <!-- SCHEDA 1: MAPPA A TUTTO SCHERMO CON EFFICIENZE IN ALTO E POSIZIONE CENTRATA IN BASSO -->
   <section id="viewMap" class="view active">
     <div id="mapViewport">
       <div class="center-reticle"></div>
@@ -300,19 +300,21 @@
 
       <!-- Campi Dati Garmin GPSMAP 64st + MGRS posizionati IN ALTO -->
       <div class="top-telemetry-stack">
+        <!-- Riga 1: Efficienza Reale e Efficienza a Destinazione (formato Garmin 64st: X.X:1) -->
         <div class="garmin-row-top">
           <div class="g-field">
-            <div class="g-label">VEL. VERT. (REALE)</div>
-            <div class="g-value" id="valVsReal">0 ft/m</div>
+            <div class="g-label">EFFICIENZA (REALE)</div>
+            <div class="g-value" id="valGlideReal">---</div>
             <div class="g-sub" id="subAltMsl">QUOTA: -- ft MSL</div>
           </div>
-          <div class="g-field" id="cardVsDest">
-            <div class="g-label">VEL. VERT. A DEST.</div>
-            <div class="g-value" id="valVsDest">-- ft/m</div>
+          <div class="g-field" id="cardGlideDest">
+            <div class="g-label">EFFICIENZA A DEST.</div>
+            <div class="g-value" id="valGlideDest">---</div>
             <div class="g-sub" id="subGlideStatus">IN ATTESA GPS</div>
           </div>
         </div>
 
+        <!-- Riga 2: Distanza dal DIP, Velocita al suolo e Direzione -->
         <div class="garmin-row-bottom">
           <div class="g-field">
             <div class="g-label">DISTANZA DIP</div>
@@ -331,6 +333,7 @@
           </div>
         </div>
 
+        <!-- Barra compatta coordinate WGRS / MGRS -->
         <div class="mgrs-strip">
           <div>
             <div class="hud-mgrs-lbl">POS (WGRS / MGRS)</div>
@@ -445,7 +448,9 @@
         if (btn.dataset.tab === "viewMap") {
           setTimeout(() => {
             map.invalidateSize();
-            if (currentTelemetry.lat) centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
+            if (autoCenter && currentTelemetry.lat) {
+              centerMapOnPosition(currentTelemetry.lat, currentTelemetry.lon);
+            }
           }, 60);
         }
       });
@@ -457,6 +462,25 @@
 
     function centerMapOnPosition(lat, lon) {
       map.setView([lat, lon], map.getZoom(), { animate: false });
+    }
+
+    // Auto-zoom sulla traccia di navigazione attiva (Posizione attuale o HARP -> DIP attivo)
+    function zoomToActiveTrack() {
+      const target = getActiveDip();
+      const originLat = currentTelemetry.lat || navState.harpLat;
+      const originLon = currentTelemetry.lon || navState.harpLon;
+
+      const distM = AeronavCore.distanceMeters(originLat, originLon, target.lat, target.lon);
+      // Calcola il livello di zoom ottimale per visualizzare l'intera tratta nella porzione visibile della mappa
+      // sotto la telemetria superiore (circa il 48% dell'altezza del viewport)
+      const viewH = document.getElementById("mapViewport").clientHeight || 640;
+      const visibleSpanPx = Math.max(220, viewH * 0.48);
+      const midLatRad = AeronavCore.toRad((originLat + target.lat) / 2);
+      const metersPerPixelNeeded = Math.max(distM * 1.35, 300) / visibleSpanPx;
+      const zoomFloat = Math.log2((156543.03392 * Math.cos(midLatRad)) / metersPerPixelNeeded);
+      const targetZoom = Math.max(8, Math.min(16, Math.floor(zoomFloat)));
+
+      map.setView([originLat, originLon], targetZoom, { animate: true });
     }
 
     const jumperIcon = L.divIcon({
@@ -573,6 +597,12 @@
     const altHistory = [];
     const trailCoords = [];
 
+    function formatGlideRatio(val) {
+      if (val === null || !Number.isFinite(val) || val <= 0) return "---";
+      if (val > 99.9) return "99.9:1";
+      return `${val.toFixed(1)}:1`;
+    }
+
     function updateTelemetry(lat, lon, rawAltM, speedMs, gpsHdg) {
       const nowMs = Date.now();
       const altFt = (typeof rawAltM === "number" && Number.isFinite(rawAltM))
@@ -594,6 +624,7 @@
         updateMapRotation();
       }
 
+      // Finestra scorrevole 4 secondi per rateo di discesa reale (ft/min)
       altHistory.push({ t: nowMs, altFt });
       while (altHistory.length > 2 && (nowMs - altHistory[0].t) > 4500) {
         altHistory.shift();
@@ -611,14 +642,30 @@
       const distKm = distM / 1000;
       const brgToDip = AeronavCore.bearingDegrees(lat, lon, target.lat, target.lon);
 
-      const speedMpm = (speedKt * AeronavCore.KT_TO_MS) * 60;
+      const groundSpeedMs = speedKt * AeronavCore.KT_TO_MS;
+      const speedMpm = groundSpeedMs * 60;
       const altToLoseFt = altFt - target.elevFt;
+      const altToLoseM = altToLoseFt * AeronavCore.FT_TO_M;
 
-      let vsDestFpm = null;
+      // 1. EFFICIENZA REALE (Garmin GPSMAP 64st Glide Ratio):
+      //    Rapporto tra velocita' orizzontale al suolo e velocita' verticale di discesa (L/D reale)
+      const sinkRateFpm = -vsRealFpm; // positivo in discesa
+      let realGlideRatio = null;
+      if (sinkRateFpm > 30 && speedKt > 1.5) {
+        const horizFpm = (groundSpeedMs * AeronavCore.M_TO_FT) * 60;
+        realGlideRatio = horizFpm / sinkRateFpm;
+      }
+
+      // 2. EFFICIENZA A DESTINAZIONE (Garmin GPSMAP 64st Glide Ratio to Destination):
+      //    Rapporto tra distanza orizzontale residua al DIP e quota residua sopra il DIP (Distanza / Quota AGL)
+      let reqGlideRatio = null;
+      if (altToLoseM > 3 && distM > 5) {
+        reqGlideRatio = distM / altToLoseM;
+      }
+
       let eteStr = "--:--";
       if (speedMpm > 15 && distM > 5) {
         const eteMin = distM / speedMpm;
-        vsDestFpm = (target.elevFt - altFt) / eteMin;
         const totSec = Math.round(eteMin * 60);
         const mm = Math.floor(totSec / 60);
         const ss = totSec % 60;
@@ -629,32 +676,34 @@
       document.getElementById("hudTargetName").textContent = target.name;
       document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
 
-      const signReal = vsRealFpm > 5 ? "+" : "";
-      document.getElementById("valVsReal").textContent = `${signReal}${Math.round(vsRealFpm)} ft/m`;
+      // Aggiornamento Efficienza Reale
+      document.getElementById("valGlideReal").textContent = formatGlideRatio(realGlideRatio);
       document.getElementById("subAltMsl").textContent = `QUOTA: ${Math.round(altFt)} ft (AGL: ${Math.round(altToLoseFt)} ft)`;
 
-      const cardDest = document.getElementById("cardVsDest");
-      cardDest.classList.remove("status-ok", "status-high", "status-low");
-      if (vsDestFpm !== null) {
-        const signDest = vsDestFpm > 5 ? "+" : "";
-        document.getElementById("valVsDest").textContent = `${signDest}${Math.round(vsDestFpm)} ft/m`;
-        const deltaVs = vsRealFpm - vsDestFpm;
-        if (altToLoseFt <= 0) {
-          cardDest.classList.add("status-low");
-          document.getElementById("subGlideStatus").textContent = "SOTTO QUOTA DIP";
-        } else if (Math.abs(deltaVs) <= 120) {
-          cardDest.classList.add("status-ok");
+      // Aggiornamento Efficienza a Destinazione + Stato Semaforico Garmin
+      const cardGlide = document.getElementById("cardGlideDest");
+      cardGlide.classList.remove("status-ok", "status-high", "status-low");
+      document.getElementById("valGlideDest").textContent = formatGlideRatio(reqGlideRatio);
+
+      if (altToLoseFt <= 0) {
+        cardGlide.classList.add("status-low");
+        document.getElementById("subGlideStatus").textContent = "SOTTO QUOTA DIP";
+      } else if (realGlideRatio !== null && reqGlideRatio !== null) {
+        const margin = realGlideRatio - reqGlideRatio;
+        if (margin >= reqGlideRatio * 0.25) {
+          cardGlide.classList.add("status-high");
+          document.getElementById("subGlideStatus").textContent = `MARGINE +${margin.toFixed(1)}:1`;
+        } else if (margin >= -0.2) {
+          cardGlide.classList.add("status-ok");
           document.getElementById("subGlideStatus").textContent = "IN SENTIERO IDEALE";
-        } else if (deltaVs > 120) {
-          cardDest.classList.add("status-high");
-          document.getElementById("subGlideStatus").textContent = "ALTO (+MARGINE)";
         } else {
-          cardDest.classList.add("status-low");
-          document.getElementById("subGlideStatus").textContent = "BASSO (CORTI)";
+          cardGlide.classList.add("status-low");
+          document.getElementById("subGlideStatus").textContent = `DEFICIT ${margin.toFixed(1)}:1`;
         }
+      } else if (reqGlideRatio !== null) {
+        document.getElementById("subGlideStatus").textContent = `RICHIESTA ${reqGlideRatio.toFixed(1)}:1`;
       } else {
-        document.getElementById("valVsDest").textContent = "-- ft/m";
-        document.getElementById("subGlideStatus").textContent = "VELOCITÀ INSUFF.";
+        document.getElementById("subGlideStatus").textContent = "IN ATTESA DATI";
       }
 
       document.getElementById("valDist").textContent = distKm >= 1
@@ -824,31 +873,39 @@
       localStorage.setItem(NAV_KEY, JSON.stringify(navState));
 
       const target = getActiveDip();
+      const originLat = currentTelemetry.lat || navState.harpLat;
+      const originLon = currentTelemetry.lon || navState.harpLon;
+
       harpMarker.setLatLng([navState.harpLat, navState.harpLon]);
       dipMarker.setLatLng([target.lat, target.lon]);
       idealLine.setLatLngs([[navState.harpLat, navState.harpLon], [target.lat, target.lon]]);
+      directLine.setLatLngs([[originLat, originLon], [target.lat, target.lon]]);
 
+      // Passa alla scheda Mappa ed esegue auto-zoom sulla nuova traccia di navigazione
       document.querySelector('.tab-btn[data-tab="viewMap"]').click();
 
-      if (currentTelemetry.lat) {
-        updateTelemetry(
-          currentTelemetry.lat,
-          currentTelemetry.lon,
-          (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
-          currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
-          currentTelemetry.gpsHeading
-        );
-      } else {
-        document.getElementById("hudTargetName").textContent = target.name;
-        document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
-        centerMapOnPosition(navState.harpLat, navState.harpLon);
-      }
+      setTimeout(() => {
+        map.invalidateSize();
+        if (currentTelemetry.lat) {
+          updateTelemetry(
+            currentTelemetry.lat,
+            currentTelemetry.lon,
+            (currentTelemetry.altFt - navState.altOffsetFt) * AeronavCore.FT_TO_M,
+            currentTelemetry.speedKt * AeronavCore.KT_TO_MS,
+            currentTelemetry.gpsHeading
+          );
+        } else {
+          document.getElementById("hudTargetName").textContent = target.name;
+          document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(target.lat, target.lon, 5);
+        }
+        zoomToActiveTrack();
+      }, 90);
     };
 
     renderTargetConfig();
     document.getElementById("hudTargetName").textContent = activeDip.name;
     document.getElementById("hudDipMgrs").textContent = AeronavCore.latLonToMgrs(activeDip.lat, activeDip.lon, 5);
-    centerMapOnPosition(navState.harpLat, navState.harpLon);
+    zoomToActiveTrack();
 
     let deferredPrompt = null;
     AeronavCore.initPwaAutoUpdate((e) => {

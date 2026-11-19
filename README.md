@@ -2,6 +2,8 @@
 
 Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per la pubblicazione diretta su **GitHub Pages** o qualsiasi hosting statico HTTPS.
 
-## Novità Versione 2
-- **Telemetria in Alto nella Scheda Mappa**: Tutti i campi Garmin GPSMAP 64st (`Vel. Vert. Reale`, `Vel. Vert. a Destinazione`, `Distanza DIP`, `Velocità`, `Direzione`) e le coordinate `MGRS / WGRS` sono raggruppati nella parte superiore dello schermo.
-- **Posizione Centrata in Basso (Forward Look-Ahead)**: Il punto GPS attuale e il perno di rotazione bussola sono posizionati nella zona inferiore dello schermo (78% dell'altezza), lasciando massima visibilità alla rotta davanti a te.
+## Novità Versione 3
+- **Efficienza Reale ed Efficienza a Destinazione (Garmin GPSMAP 64st)**:
+  - `EFFICIENZA (REALE)`: rapporto istantaneo tra velocità orizzontale al suolo e rateo di discesa (`X.X:1`).
+  - `EFFICIENZA A DEST.`: rapporto tra distanza residua al DIP e quota residua sopra il DIP (`X.X:1`), con indicatore semaforico di margine o deficit.
+- **Auto-Zoom alla Selezione del DIP**: Attivando il DIP principale o uno dei 5 DIP alternativi, la mappa calcola automaticamente il livello di zoom ottimale per inquadrare l'intera traccia di navigazione.
