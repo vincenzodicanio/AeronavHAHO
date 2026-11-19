@@ -5,6 +5,8 @@ Applicazione web progressiva (**PWA**) installabile su smartphone e pronta per l
 ## Novità v9
 * **Mappe salvate offline**: le porzioni di mappa (stradale e satellite) visualizzate a ogni zoom vengono salvate dal service worker (fino a 5.000 tasselli, poi i più vecchi vengono eliminati) e riutilizzate senza connessione. Pulsante `SVUOTA` nelle Impostazioni. Le zone mai visualizzate restano vuote offline.
 * **Mappa satellitare**: nella scheda `IMPOSTAZIONI` del navigatore nuova sezione `MAPPA DI SFONDO` (Stradale OSM / Satellite Esri World Imagery). La scelta è salvata e applicata anche al Planner (che ha anche un selettore livelli sulla mappa). I tasselli satellitari richiedono connessione dati.
+* **Planner più reattivo**: ricalcolo con ritardo di 200 ms mentre si digita, zoom automatico solo quando la traccia esce dalla vista, DEM e venti scaricati in parallelo.
+* **Tracce distinte**: caduta libera (arancio, spessa) e vela aperta (verde), con legenda, frecce di direzione e tooltip con distanza e tempo.
 * **Quota lancio e quota apertura** separate nel Planner (al posto del campo unico "Apertura"). I vecchi dati salvati vengono migrati con lancio = apertura.
 * **Deriva a paracadute chiuso**: il calcolo HARP ora include la caduta libera (lancio → apertura), con ratei di caduta libera impostabile (default 10.500 ft/min ≈ 53 m/s). Il corpo è trasportato solo dal vento; il tratto è mostrato tratteggiato in arancio.
 * **Punto di apertura**: MGRS, deriva (distanza, direzione, tempo di caduta libera) e **pressione al suolo sulla verticale** riferita al QNH (atmosfera ISA, quota suolo da DEM). Il QNH si precompila da Open-Meteo (pressione al livello del mare) ma resta modificabile a mano. Il GPX include il waypoint `OPEN`.

@@ -165,6 +165,16 @@
       margin: 2px 0 8px 0;
       word-break: break-all;
     }
+    .track-legend {
+      background: rgba(9, 14, 23, 0.88);
+      color: #f1f5f9;
+      font-size: 11px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      border: 1px solid #263349;
+      line-height: 1.7;
+    }
+    .lg-line { display: inline-block; width: 24px; height: 5px; border-radius: 3px; margin-right: 7px; vertical-align: middle; }
     .warn-msg { font-size: 11px; color: var(--amber); margin-top: 6px; min-height: 0; }
   </style>
 </head>
@@ -450,8 +460,55 @@
     const dipMarker = L.marker([state.dipLat, state.dipLon], { icon: dipIcon, draggable: true }).addTo(map);
     const harpMarker = L.marker([state.harpLat, state.harpLon], { icon: harpIcon }).addTo(map);
     const openMarker = L.marker([state.dipLat, state.dipLon], { icon: openIcon }).addTo(map);
-    const routeLine = L.polyline([], { color: "#22c55e", weight: 4 }).addTo(map);
-    const freefallLine = L.polyline([], { color: "#f59e0b", weight: 3, dashArray: "6,6" }).addTo(map);
+    // Due tracce distinte: caduta libera (lancio -> apertura) e vela aperta (apertura -> atterraggio)
+    const TRACK_FF_COLOR = "#f97316";
+    const TRACK_CANOPY_COLOR = "#22c55e";
+    const freefallLine = L.polyline([], { color: TRACK_FF_COLOR, weight: 6, opacity: 0.95 }).addTo(map);
+    const routeLine = L.polyline([], { color: TRACK_CANOPY_COLOR, weight: 4, opacity: 0.95 }).addTo(map);
+    freefallLine.bindTooltip("", { sticky: true });
+    routeLine.bindTooltip("", { sticky: true });
+    const arrowLayer = L.layerGroup().addTo(map);
+
+    const trackLegend = L.control({ position: "bottomleft" });
+    trackLegend.onAdd = () => {
+      const d = L.DomUtil.create("div", "track-legend");
+      d.innerHTML =
+        `<div><span class="lg-line" style="background:${TRACK_FF_COLOR}"></span>Caduta libera (lancio &rarr; apertura)</div>` +
+        `<div><span class="lg-line" style="background:${TRACK_CANOPY_COLOR}"></span>Vela aperta (apertura &rarr; atterraggio)</div>`;
+      return d;
+    };
+    trackLegend.addTo(map);
+
+    function addTrackArrow(pts, color) {
+      if (pts.length < 2) return;
+      const i = Math.max(1, Math.floor(pts.length / 2));
+      const a = pts[i - 1];
+      const b = pts[i];
+      const brg = AeronavCore.bearingDegrees(a.lat, a.lon, b.lat, b.lon);
+      const icon = L.divIcon({
+        html: `<div style="width:20px;height:20px;transform:rotate(${brg}deg);"><svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 21,21 12,16 3,21" fill="${color}" stroke="#090e17" stroke-width="2"/></svg></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+      L.marker([(a.lat + b.lat) / 2, (a.lon + b.lon) / 2], { icon, interactive: false, keyboard: false }).addTo(arrowLayer);
+    }
+
+    // Zoom automatico sulla traccia: solo se richiesto o se la traccia esce dalla vista (niente zoom a ogni tasto)
+    function fitTrack(latLngs, force) {
+      if (latLngs.length < 2) return;
+      const b = L.latLngBounds(latLngs);
+      if (force || !map.getBounds().contains(b)) {
+        map.fitBounds(b.pad(0.25), { animate: false });
+      }
+    }
+
+    function debounce(fn, ms) {
+      let t = null;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
     const safetyCircle = L.circle([state.dipLat, state.dipLon], {
       radius: 300,
       color: "#ef4444",
@@ -507,27 +564,34 @@
         : Math.round(state.sinkRateFpm);
     }
 
+    let dipReq = 0;
     async function setDipCoordinates(lat, lon, fetchMeteo = true) {
+      const req = ++dipReq;
       state.dipLat = lat;
       state.dipLon = lon;
       dipMarker.setLatLng([lat, lon]);
       safetyCircle.setLatLng([lat, lon]);
       document.getElementById("dipMgrs").value = AeronavCore.latLonToMgrs(lat, lon, 5);
 
-      if (fetchMeteo) {
-        document.getElementById("dipStatus").textContent = "Lettura elevazione DEM e venti Open-Meteo...";
-        try {
-          const elev = await AeronavCore.fetchElevationFt(lat, lon);
-          state.dipElevFt = elev;
-          document.getElementById("dipElev").value = isMetricAlt
-            ? Math.round(elev * AeronavCore.FT_TO_M)
-            : elev;
-        } catch (err) {
-          document.getElementById("dipStatus").textContent = "DEM non raggiungibile, uso quota manuale.";
-        }
-        await fetchOpenMeteoWinds();
+      // Aggiorna subito mappa e risultati con i dati attuali, poi rifinisce quando arrivano DEM e venti
+      recalculateHarp(true);
+      if (!fetchMeteo) return;
+
+      document.getElementById("dipStatus").textContent = "Lettura elevazione DEM e venti Open-Meteo...";
+      const elevPromise = AeronavCore.fetchElevationFt(lat, lon).catch(() => null);
+      const windPromise = fetchOpenMeteoWinds();
+      const [elev] = await Promise.all([elevPromise, windPromise]);
+      if (req !== dipReq) return; // nel frattempo il DIP e' stato spostato di nuovo
+
+      if (elev !== null) {
+        state.dipElevFt = elev;
+        document.getElementById("dipElev").value = isMetricAlt
+          ? Math.round(elev * AeronavCore.FT_TO_M)
+          : elev;
+      } else {
+        document.getElementById("dipStatus").textContent = "DEM non raggiungibile, uso quota manuale.";
       }
-      recalculateHarp();
+      recalculateHarp(false);
     }
 
     document.getElementById("btnApplyMgrs").addEventListener("click", () => {
@@ -535,7 +599,6 @@
       try {
         const { lat, lon } = AeronavCore.mgrsToLatLon(raw);
         setDipCoordinates(lat, lon, true);
-        map.setView([lat, lon], 12);
       } catch (err) {
         document.getElementById("dipStatus").textContent = "Errore MGRS: " + err.message;
       }
@@ -629,8 +692,9 @@
       recalculateHarp();
     });
 
+    let windsSorted = [];
     function getWindAtAltitude(altFt) {
-      const sorted = [...state.winds].sort((a, b) => a.altFt - b.altFt);
+      const sorted = windsSorted;
       if (altFt <= sorted[0].altFt) return sorted[0];
       if (altFt >= sorted[sorted.length - 1].altFt) return sorted[sorted.length - 1];
       for (let i = 0; i < sorted.length - 1; i++) {
@@ -654,6 +718,7 @@
     let openElevTimer = null;
     let openElevReq = 0;
     let openGroundElevFt = null;
+    const openElevCache = new Map();
     let openElevStatus = "pending"; // "pending" | "dem" | "fallback"
 
     function renderOpenPressure() {
@@ -680,7 +745,12 @@
       openElevTimer = setTimeout(async () => {
         const req = ++openElevReq;
         try {
-          const e = await AeronavCore.fetchElevationFt(lat, lon);
+          const ck = lat.toFixed(4) + "," + lon.toFixed(4);
+          let e = openElevCache.get(ck);
+          if (e === undefined) {
+            e = await AeronavCore.fetchElevationFt(lat, lon);
+            openElevCache.set(ck, e);
+          }
           if (req !== openElevReq) return;
           openGroundElevFt = e;
           openElevStatus = "dem";
@@ -693,7 +763,9 @@
       }, 600);
     }
 
-    function recalculateHarp() {
+    function recalculateHarp(forceFit = false) {
+      windsSorted = [...state.winds].sort((a, b) => a.altFt - b.altFt);
+      if (windsSorted.length === 0) windsSorted = [{ altFt: 0, dirFrom: 0, spdKt: 0 }];
       const rawElev = parseFloat(document.getElementById("dipElev").value) || 0;
       const rawSf = Math.max(0, parseFloat(document.getElementById("safetyFactor").value) || 0);
       const rawLaunch = parseFloat(document.getElementById("launchAlt").value) || (isMetricAlt ? 4500 : 15000);
@@ -717,6 +789,8 @@
       if (state.openAltFt > state.launchAltFt) {
         openAltEffFt = state.launchAltFt;
         warnEl.textContent = "Quota apertura superiore alla quota lancio: calcolo con apertura = lancio.";
+      } else if (state.openAltFt === state.launchAltFt) {
+        warnEl.textContent = "Quota lancio = quota apertura: nessuna caduta libera, la traccia arancio non viene disegnata.";
       } else {
         warnEl.textContent = "";
       }
@@ -734,6 +808,9 @@
       const canopyHorizKt = (canopyHorizFps * AeronavCore.FT_TO_M) * AeronavCore.MS_TO_KT;
 
       const stepFt = 500;
+      const maxSteps = 400; // protezione contro valori enormi digitati nei campi
+      const canopyStepFt = Math.max(stepFt, (openAltEffFt - targetArrivalAltFt) / maxSteps);
+      const freefallStepFt = Math.max(stepFt, (state.launchAltFt - openAltEffFt) / maxSteps);
       let canopyTimeSec = 0;
       let freefallTimeSec = 0;
 
@@ -742,8 +819,8 @@
       let currLat = state.dipLat;
       let currLon = state.dipLon;
 
-      for (let alt = targetArrivalAltFt; alt < openAltEffFt; alt += stepFt) {
-        const dh = Math.min(stepFt, openAltEffFt - alt);
+      for (let alt = targetArrivalAltFt; alt < openAltEffFt; alt += canopyStepFt) {
+        const dh = Math.min(canopyStepFt, openAltEffFt - alt);
         const midAlt = alt + dh / 2;
         const wind = getWindAtAltitude(midAlt);
 
@@ -767,8 +844,8 @@
       // nessuna velocita' propria, il corpo e' trasportato solo dal vento -> il punto di lancio
       // e' spostato controvento rispetto al punto di apertura.
       const freefallPts = [{ lat: currLat, lon: currLon, altFt: openAltEffFt }];
-      for (let alt = openAltEffFt; alt < state.launchAltFt; alt += stepFt) {
-        const dh = Math.min(stepFt, state.launchAltFt - alt);
+      for (let alt = openAltEffFt; alt < state.launchAltFt; alt += freefallStepFt) {
+        const dh = Math.min(freefallStepFt, state.launchAltFt - alt);
         const midAlt = alt + dh / 2;
         const wind = getWindAtAltitude(midAlt);
 
@@ -821,6 +898,18 @@
       routeLine.setLatLngs(canopyLatLngs);
       freefallLine.setLatLngs(freefallLatLngs);
 
+      const canopyDistM = AeronavCore.distanceMeters(state.openLat, state.openLon, state.dipLat, state.dipLon);
+      routeLine.setTooltipContent(
+        "VELA APERTA (apertura → atterraggio): " + fmtDist(canopyDistM) + " | " + (canopyTimeSec / 60).toFixed(1) + " min"
+      );
+      freefallLine.setTooltipContent(
+        "CADUTA LIBERA (lancio → apertura): " + fmtDist(ffDistM) + " | " +
+        (freefallTimeSec >= 60 ? (freefallTimeSec / 60).toFixed(1) + " min" : Math.round(freefallTimeSec) + " s")
+      );
+      arrowLayer.clearLayers();
+      addTrackArrow(freefallPts, TRACK_FF_COLOR);
+      addTrackArrow(canopyPts, TRACK_CANOPY_COLOR);
+
       const marginGlideM = (state.safetyFactorKft * 1000 * state.glideRatio) * AeronavCore.FT_TO_M;
       safetyCircle.setRadius(Math.max(150, marginGlideM));
 
@@ -840,10 +929,7 @@
         }
       });
 
-      const allLatLngs = freefallLatLngs.concat(canopyLatLngs);
-      if (allLatLngs.length > 1) {
-        map.fitBounds(L.latLngBounds(allLatLngs).pad(0.25));
-      }
+      fitTrack(freefallLatLngs.concat(canopyLatLngs), forceFit);
 
       scheduleOpenGroundElev();
       saveMissionState();
@@ -853,8 +939,9 @@
       localStorage.setItem(STATE_KEY, JSON.stringify(state));
     }
 
+    const debouncedRecalc = debounce(() => recalculateHarp(false), 200);
     ["dipElev", "safetyFactor", "launchAlt", "openAlt", "glideRatio", "sinkRate", "freefallRate", "qnh"].forEach(id => {
-      document.getElementById(id).addEventListener("input", recalculateHarp);
+      document.getElementById(id).addEventListener("input", debouncedRecalc);
     });
     // Se il QNH viene digitato a mano, non viene piu' sovrascritto dall'aggiornamento venti
     document.getElementById("qnh").addEventListener("input", () => { state.qnhManual = true; });
@@ -910,7 +997,7 @@
 
     syncInputsFromState();
     renderWindTable();
-    recalculateHarp();
+    recalculateHarp(true);
 
     let deferredPrompt = null;
     AeronavCore.initPwaAutoUpdate((e) => {
